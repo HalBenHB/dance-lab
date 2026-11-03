@@ -1,0 +1,16 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local editor and assistant settings
+.vscode/
+.idea/
+.claude/
+
+# Songs used for testing stay out of the repo
+*.mp3
+*.m4a
+*.wav
+*.flac
+*.ogg

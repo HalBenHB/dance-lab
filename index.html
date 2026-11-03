@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dance Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a short index. Name, the tools as cards, then a tempo reference for the five Latin dances. Same tokens as the tools. */
+:root {
+  --bg: #F1F0F6;
+  --surface: #FFFFFF;
+  --surface-2: #E8E6F0;
+  --ink: #1B1828;
+  --muted: #625D75;
+  --line: #D6D2E2;
+  --one: #C81E63;
+  --step: #D08A17;
+  --font-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #13111B; --surface: #1C1927; --surface-2: #272336; --ink: #EDEBF4; --muted: #A39DB8; --line: #342F47;
+    --one: #FF4D8A; --step: #F2B347;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #13111B; --surface: #1C1927; --surface-2: #272336; --ink: #EDEBF4; --muted: #A39DB8; --line: #342F47;
+  --one: #FF4D8A; --step: #F2B347;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.app {
+  max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px;
+  padding-block: 32px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+:focus-visible { outline: 2px solid var(--one); outline-offset: 2px; }
+
+header h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(2.8rem, 9vw, 4.6rem); line-height: .85; text-transform: uppercase; letter-spacing: .01em; }
+header h1 span { color: var(--one); }
+header p { color: var(--muted); margin-top: 10px; max-width: 56ch; font-size: 1.05rem; }
+
+h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.7rem; text-transform: uppercase; letter-spacing: .02em; line-height: 1; }
+.section { display: flex; flex-direction: column; gap: 12px; }
+.section > p { color: var(--muted); max-width: 70ch; }
+
+.tool {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px;
+  color: inherit; text-decoration: none;
+}
+.tool:hover { border-color: var(--muted); }
+.tool .mark { font-family: var(--font-display); font-weight: 800; font-size: 3.6rem; line-height: .8; color: var(--one); width: 1.2ch; text-align: center; }
+.tool h3 { font-size: 1.15rem; }
+.tool p { color: var(--muted); margin-top: 2px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tags span { font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.tool .open { font-weight: 700; padding: 9px 16px; border-radius: 10px; background: var(--ink); color: var(--bg); white-space: nowrap; }
+
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 620px; }
+th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+td.num, td.count { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: .9rem; }
+td .dance { font-weight: 700; }
+.yes { color: var(--step); font-weight: 700; }
+.no { color: var(--muted); }
+.note { font-size: .85rem; color: var(--muted); }
+footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 14px; }
+
+@media (max-width: 600px) {
+  .tool { grid-template-columns: auto minmax(0, 1fr); }
+  .tool .open { grid-column: 1 / -1; text-align: center; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Dance <span>Lab</span></h1>
+    <p>Practice tools for Latin dance: hear the count, find the 1, and drill your steps to the music.</p>
+  </header>
+
+  <section class="section" aria-labelledby="tools">
+    <h2 id="tools">Tools</h2>
+    <a class="tool" href="wheres-the-one/">
+      <span class="mark" aria-hidden="true">1</span>
+      <span>
+        <h3>Where's the One</h3>
+        <p>Load a song and watch its beats, bars and the 1, with your steps on every count. Slow it down, loop a few bars, or add a click track.</p>
+        <span class="tags"><span>Rumba</span><span>Cha-cha</span><span>Samba</span></span>
+      </span>
+      <span class="open">Open</span>
+    </a>
+  </section>
+
+  <section class="section" aria-labelledby="tempo">
+    <h2 id="tempo">Counts and tempos</h2>
+    <p>Competition tempos are given in bars per minute (MPM). Beats per minute depend on how many beats a bar has.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Dance</th><th>Time</th><th>Basic count</th><th>Competition MPM</th><th>BPM</th><th>In Where's the One</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="dance">Rumba</span></td><td class="num">4/4</td><td class="count">2, 3, 4-1</td><td class="num">25–27</td><td class="num">100–108</td><td class="yes">Yes</td></tr>
+          <tr><td><span class="dance">Cha-cha</span></td><td class="num">4/4</td><td class="count">2, 3, 4-&amp;-1</td><td class="num">30–32</td><td class="num">120–128</td><td class="yes">Yes</td></tr>
+          <tr><td><span class="dance">Samba</span></td><td class="num">2/4</td><td class="count">1 a 2</td><td class="num">50–52</td><td class="num">100–104</td><td class="yes">Yes</td></tr>
+          <tr><td><span class="dance">Jive</span></td><td class="num">4/4</td><td class="count">1, 2, 3 a 4, 3 a 4</td><td class="num">42–44</td><td class="num">168–176</td><td class="no">Not yet</td></tr>
+          <tr><td><span class="dance">Paso Doble</span></td><td class="num">2/4</td><td class="count">1, 2</td><td class="num">60–62</td><td class="num">120–124</td><td class="no">Not yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Tempos follow WDSF competition rules. Social and show routines often use slower music.</p>
+  </section>
+
+  <footer>Everything runs in your browser. Songs you load stay on your device and are never uploaded.</footer>
+</div>
+</body>
+</html>

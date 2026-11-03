@@ -1,0 +1,1293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Where's the One</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Base reset (the claude.ai artifact host adds these same rules) */
+:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+/* Layout: a practice console. Song strip, the big count stage, a scrolling beat timeline, transport, then tools to fix the count. */
+:root {
+  --bg: #F1F0F6;
+  --surface: #FFFFFF;
+  --surface-2: #E8E6F0;
+  --ink: #1B1828;
+  --muted: #625D75;
+  --line: #D6D2E2;
+  --one: #C81E63;
+  --one-soft: rgba(200, 30, 99, .10);
+  --step: #D08A17;
+  --wave: #C9C4DA;
+  --wave-played: #857DA3;
+  --on-accent: #FFFFFF;
+  --font-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #13111B; --surface: #1C1927; --surface-2: #272336; --ink: #EDEBF4; --muted: #A39DB8; --line: #342F47;
+    --one: #FF4D8A; --one-soft: rgba(255, 77, 138, .14); --step: #F2B347; --wave: #3A3450; --wave-played: #766D98; --on-accent: #14111B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #13111B; --surface: #1C1927; --surface-2: #272336; --ink: #EDEBF4; --muted: #A39DB8; --line: #342F47;
+  --one: #FF4D8A; --one-soft: rgba(255, 77, 138, .14); --step: #F2B347; --wave: #3A3450; --wave-played: #766D98; --on-accent: #14111B;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.app {
+  max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;
+  padding-block: 22px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: flex-end; justify-content: space-between; }
+.back { display: inline-block; margin-bottom: 10px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: .88rem; }
+.back:hover { color: var(--one); }
+.brand h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(2.2rem, 6vw, 3.1rem); line-height: .9; letter-spacing: .01em; text-transform: uppercase; }
+.brand h1 span { color: var(--one); }
+.brand p { color: var(--muted); margin-top: 6px; max-width: 52ch; }
+
+/* buttons and fields */
+button, select { font: inherit; color: inherit; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 8px 14px; min-height: 38px; border-radius: 10px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--line); font-weight: 600; font-size: .93rem; white-space: nowrap;
+}
+.btn:hover { border-color: var(--muted); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.accent { background: var(--one); color: var(--on-accent); border-color: var(--one); }
+.btn.tapped { transform: scale(.96); border-color: var(--one); }
+:focus-visible { outline: 2px solid var(--one); outline-offset: 2px; }
+select {
+  padding: 7px 10px; min-height: 38px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface); font-weight: 500;
+}
+kbd {
+  font-family: var(--font-mono); font-size: .78rem; padding: 1px 6px; border-radius: 5px;
+  border: 1px solid var(--line); border-bottom-width: 2px; background: var(--surface);
+}
+
+/* song strip */
+.song { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; padding-block: 12px; border-block: 1px solid var(--line); }
+.song-name { display: flex; flex-direction: column; min-width: 0; flex: 1 1 220px; }
+.song-name .tag { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.song-name strong { font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stats { display: flex; gap: 22px; margin: 0; }
+.stats div { display: flex; flex-direction: column; }
+.stats dt { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.stats dd { margin: 0; font-family: var(--font-mono); font-weight: 500; font-variant-numeric: tabular-nums; }
+.fit { flex: 1 1 100%; color: var(--muted); font-size: .9rem; }
+.progress { flex: 1 1 100%; display: flex; align-items: center; gap: 12px; font-size: .88rem; color: var(--muted); }
+.progress .track { flex: 0 0 160px; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.progress .fill { height: 100%; width: 0; background: var(--one); transition: width .2s; }
+
+/* stage */
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
+.dance-pick { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dance-pick .label { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-right: 6px; }
+.dance-pick button {
+  padding: 7px 16px; border-radius: 999px; border: 1px solid var(--line); background: transparent; cursor: pointer; font-weight: 600;
+}
+.dance-pick button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.stage-main { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); gap: 20px 32px; align-items: center; }
+.big { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 13rem; }
+.num {
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(8rem, 19vw, 13rem); line-height: .82;
+  font-variant-numeric: tabular-nums; color: var(--ink); transform-origin: 50% 70%;
+}
+.num.is-one { color: var(--one); }
+.num.hit { animation: hit .2s ease-out; }
+@keyframes hit { from { transform: scale(1.09); } to { transform: scale(1); } }
+.cue { margin-top: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-size: .95rem; }
+.side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.slots { display: grid; gap: 8px; }
+.slot {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px 9px;
+  border: 1px solid var(--line); border-radius: 12px; transition: background-color .08s, color .08s;
+}
+.slot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; margin-bottom: 4px; background: transparent; }
+.slot.step::before { background: var(--step); }
+.slot.hold { border-style: dashed; }
+.slot .n { font-family: var(--font-display); font-weight: 800; font-size: 2.5rem; line-height: 1; }
+.slot.one .n { color: var(--one); }
+.slot .c { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 600; color: var(--muted); text-align: center; }
+.slot.active { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.slot.active .c { color: var(--bg); }
+.slot.one.active { background: var(--one); border-color: var(--one); }
+.slot.one.active .n, .slot.one.active .c { color: var(--on-accent); }
+.counting { color: var(--muted); }
+.counting strong { color: var(--ink); font-family: var(--font-mono); font-weight: 500; }
+.barinfo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; color: var(--muted); }
+.barinfo strong { color: var(--ink); font-family: var(--font-mono); font-weight: 500; font-variant-numeric: tabular-nums; display: inline-block; min-width: 4ch; }
+.dots { display: flex; gap: 6px; }
+.dot { width: 11px; height: 11px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-2); }
+.dot.past { background: var(--wave-played); border-color: var(--wave-played); }
+.dot.on { background: var(--ink); border-color: var(--ink); }
+.dot.on.first { background: var(--one); border-color: var(--one); }
+.small { font-size: .82rem; color: var(--muted); }
+
+/* timeline */
+.timeline { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.timeline canvas { display: block; width: 100%; cursor: pointer; touch-action: none; }
+#detail { height: 172px; }
+#overview { height: 46px; border-top: 1px solid var(--line); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .82rem; color: var(--muted); margin-top: -8px; }
+.legend i { display: inline-block; vertical-align: middle; margin-right: 6px; }
+.legend .l-one { width: 2px; height: 14px; background: var(--one); }
+.legend .l-step { width: 9px; height: 9px; border-radius: 50%; background: var(--step); }
+.legend .l-hold { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--muted); }
+
+/* transport */
+.transport { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
+.transport .play { min-width: 104px; }
+.transport label { display: inline-flex; align-items: center; gap: 6px; font-size: .88rem; color: var(--muted); font-weight: 600; }
+.clock { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: .92rem; min-width: 13ch; }
+.spacer { flex: 1 1 auto; }
+.zoom { display: inline-flex; align-items: center; gap: 4px; font-size: .88rem; color: var(--muted); font-weight: 600; }
+.zoom .btn { min-width: 38px; padding: 6px 10px; }
+#speedNote { font-family: var(--font-mono); font-size: .82rem; color: var(--muted); }
+
+/* fix + how-to */
+.section-head { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.section-head h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.9rem; text-transform: uppercase; letter-spacing: .02em; line-height: 1; }
+.section-head p { color: var(--muted); max-width: 70ch; }
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.dance-pick .timing { display: inline-flex; align-items: center; gap: 6px; font-size: .88rem; color: var(--muted); font-weight: 600; margin-left: 6px; }
+.slots.many .n { font-size: 2rem; }
+.slots.many .c { letter-spacing: .04em; }
+.tool, .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 15px 16px; display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.tool h3, .card h3 { font-size: 1rem; font-weight: 700; }
+.tool p, .card p { color: var(--muted); font-size: .9rem; }
+.tool .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.tool input[type="range"] { width: 100%; accent-color: var(--one); }
+.offset-row { display: flex; align-items: center; gap: 10px; margin-top: auto; }
+.offset-row output { font-family: var(--font-mono); font-size: .85rem; min-width: 7ch; text-align: right; }
+.card .tempo { font-family: var(--font-mono); font-size: .82rem; color: var(--ink); }
+.card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: .9rem; display: flex; flex-direction: column; gap: 4px; }
+.keys { display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--muted); font-size: .88rem; }
+footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 14px; }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 500; font-size: .92rem;
+  max-width: calc(100% - 32px); box-shadow: 0 6px 24px rgba(0, 0, 0, .18); z-index: 20;
+}
+body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-radius: 18px; }
+
+@media (max-width: 1000px) { .grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 860px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 720px) {
+  .stage-main { grid-template-columns: 1fr; }
+  .big { min-height: 0; }
+  .num { font-size: 8.5rem; }
+}
+@media (max-width: 560px) {
+  .grid, .grid.four { grid-template-columns: 1fr; }
+  .slot .n { font-size: 2rem; }
+  .slots.many .n { font-size: 1.5rem; }
+  .slots.many .c { font-size: .58rem; letter-spacing: 0; }
+  .stats { gap: 16px; }
+  #detail { height: 150px; }
+}
+@media (prefers-reduced-motion: reduce) { .num.hit { animation: none; } .slot { transition: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <a class="back" href="../">← Dance Lab</a>
+      <h1>Where's the <span>One</span></h1>
+      <p>Load a song and watch its count: every beat, every bar, and where your feet go in Rumba, Cha-cha and Samba.</p>
+    </div>
+    <div>
+      <button class="btn primary" id="loadBtn" type="button">Load a song</button>
+      <input class="vh" id="file" type="file" accept="audio/*,video/mp4" tabindex="-1" aria-hidden="true">
+    </div>
+  </header>
+
+  <section class="song" aria-label="Song">
+    <div class="song-name"><span class="tag" id="songTag">Example</span><strong id="songName">Building the example groove…</strong></div>
+    <dl class="stats">
+      <div><dt>Tempo</dt><dd id="bpm">–</dd></div>
+      <div><dt>Bars / min</dt><dd id="mpm">–</dd></div>
+      <div><dt>Length</dt><dd id="len">–</dd></div>
+    </dl>
+    <p class="fit" id="fit"></p>
+    <div class="progress" id="progress" hidden><div class="track"><div class="fill" id="progressFill"></div></div><span id="progressText"></span></div>
+  </section>
+
+  <section class="stage" aria-label="Count">
+    <div class="dance-pick" role="group" aria-label="Dance">
+      <span class="label">Dance</span>
+      <button type="button" data-dance="count" aria-pressed="false">Just count</button>
+      <button type="button" data-dance="rumba" aria-pressed="false">Rumba</button>
+      <button type="button" data-dance="chacha" aria-pressed="true">Cha-cha</button>
+      <button type="button" data-dance="samba" aria-pressed="false">Samba</button>
+      <label class="timing" id="sambaTiming" for="sambaVariant" hidden>Timing
+        <select id="sambaVariant">
+          <option value="samba">1 a 2: basic, whisks, walks</option>
+          <option value="sambaVolta">1 a 2 a 3 a 4: voltas</option>
+        </select>
+      </label>
+    </div>
+    <div class="stage-main">
+      <div class="big" aria-hidden="true">
+        <div class="num" id="bigNum">·</div>
+        <div class="cue" id="bigCue">Press play</div>
+      </div>
+      <div class="side">
+        <div class="slots" id="slots"></div>
+        <p class="counting">Count it as <strong id="countingText">2, 3, 4-&amp;-1</strong></p>
+        <div class="barinfo">
+          <span>Bar <strong id="barNum">–</strong></span>
+          <div class="dots" id="dots" aria-hidden="true"></div>
+          <span class="small">8-bar group</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="timeline" aria-label="Timeline">
+    <canvas id="detail" aria-label="Close-up of the beats around the playhead. Click to jump."></canvas>
+    <canvas id="overview" aria-label="Whole song. Click or drag to jump."></canvas>
+  </section>
+  <div class="legend">
+    <span><i class="l-one"></i>The 1 of each bar</span>
+    <span><i class="l-step"></i>A step</span>
+    <span><i class="l-hold"></i>Rumba hold on 1</span>
+    <span>Click the timeline to jump</span>
+  </div>
+
+  <section class="transport" aria-label="Playback">
+    <button class="btn" id="prevBar" type="button" aria-label="Previous bar">‹ Bar</button>
+    <button class="btn primary play" id="play" type="button">Play</button>
+    <button class="btn" id="nextBar" type="button" aria-label="Next bar">Bar ›</button>
+    <span class="clock" id="clock">0:00.0 / 0:00</span>
+    <span class="spacer"></span>
+    <label for="speed">Speed
+      <select id="speed">
+        <option value="1">100%</option><option value="0.9">90%</option><option value="0.8">80%</option>
+        <option value="0.75">75%</option><option value="0.7">70%</option><option value="0.6">60%</option><option value="0.5">50%</option>
+      </select>
+    </label>
+    <label for="click">Click
+      <select id="click">
+        <option value="off">Off</option><option value="beats">Every beat</option><option value="steps">My steps</option>
+      </select>
+    </label>
+    <label for="loop">Loop
+      <select id="loop">
+        <option value="0">Off</option><option value="1">1 bar</option><option value="2">2 bars</option>
+        <option value="4">4 bars</option><option value="8">8 bars</option>
+      </select>
+    </label>
+    <span class="zoom"><button class="btn" id="zoomOut" type="button" aria-label="Zoom out">−</button>Zoom<button class="btn" id="zoomIn" type="button" aria-label="Zoom in">+</button></span>
+    <span id="speedNote"></span>
+  </section>
+
+  <div class="section-head">
+    <h2>Fix the count</h2>
+    <p>Detection gets most songs right, but check it by ear. The 1 is usually the strongest beat, where the bass hits and the chords change.</p>
+  </div>
+  <section class="grid" aria-label="Fix the count">
+    <div class="tool">
+      <h3>Where is the 1?</h3>
+      <p>While it plays, press <kbd>1</kbd> or the button exactly when you hear the one.</p>
+      <div class="row"><button class="btn accent" id="setOne" type="button">This is the 1</button></div>
+      <div class="row"><button class="btn" id="oneEarlier" type="button">← Earlier</button><button class="btn" id="oneLater" type="button">Later →</button></div>
+    </div>
+    <div class="tool">
+      <h3>Counts feel too fast or slow?</h3>
+      <p>If the numbers fly by twice as fast as you would dance, halve the tempo. If they crawl, double it.</p>
+      <div class="row"><button class="btn" id="half" type="button">Half tempo</button><button class="btn" id="double" type="button">Double tempo</button></div>
+    </div>
+    <div class="tool">
+      <h3>Lines between the beats?</h3>
+      <p>If the beat lines land between the beats you feel, on the "and", move them by half a beat.</p>
+      <div class="row"><button class="btn" id="shiftHalf" type="button">Shift half a beat</button></div>
+    </div>
+    <div class="tool">
+      <h3>Tap along</h3>
+      <p>While it plays, tap <kbd>T</kbd> or the button on every beat, at least 6 times.</p>
+      <div class="row"><button class="btn" id="tap" type="button">Tap</button><button class="btn" id="useTaps" type="button" disabled>Use my tempo</button></div>
+      <p class="small" id="tapInfo">No taps yet.</p>
+    </div>
+    <div class="tool">
+      <h3>Sync nudge</h3>
+      <p>If the numbers look early or late against what you hear, for example on Bluetooth speakers, slide this.</p>
+      <div class="offset-row"><input type="range" id="offset" min="-300" max="300" step="10" value="0" aria-label="Sync nudge in milliseconds"><output id="offsetVal" for="offset">0 ms</output></div>
+    </div>
+    <div class="tool">
+      <h3>Start over</h3>
+      <p>Undo the tempo and the 1 fixes and detect the beats again.</p>
+      <div class="row"><button class="btn" id="redetect" type="button">Detect again</button></div>
+    </div>
+  </section>
+
+  <div class="section-head">
+    <h2>How the counts work</h2>
+    <p>Rumba and Cha-cha music is in 4/4 (four beats to a bar), Samba in 2/4 (two beats). Dancers think in bars, so ballroom tempo is given in bars per minute (MPM).</p>
+  </div>
+  <section class="grid four" aria-label="How the counts work">
+    <div class="card">
+      <h3>Rumba: 2, 3, 4-1</h3>
+      <p>Step on 2 and 3 (quick, quick), then step on 4 and stay on that foot through the 1 (slow). The hips finish the action on the 1. You never step on the 1.</p>
+      <p class="tempo">Competition: 25–27 MPM · 100–108 BPM</p>
+    </div>
+    <div class="card">
+      <h3>Cha-cha: 2, 3, 4-&amp;-1</h3>
+      <p>Step on 2 and 3, then three quick steps on 4, &amp; and 1: the cha-cha-cha chassé. The &amp; is half a beat, so 4-&amp;-1 takes the same time as two ordinary beats.</p>
+      <p class="tempo">Competition: 30–32 MPM · 120–128 BPM</p>
+    </div>
+    <div class="card">
+      <h3>Samba: 1 a 2</h3>
+      <p>Step on 1, a quick step on the a, then step on 2. The a comes a quarter beat before the 2, later and quicker than the cha-cha &amp;. Samba music is in 2/4, so each 1 a 2 is one bar. Here two bars make a group, counted 1 a 2, 3 a 4. Voltas use 1 a 2 a 3 a 4.</p>
+      <p class="tempo">Competition: 50–52 MPM · 100–104 BPM</p>
+    </div>
+    <div class="card">
+      <h3>Finding the 1 by ear</h3>
+      <ul>
+        <li>Follow the bass and the chords, not the singer.</li>
+        <li>The chords usually change on the 1.</li>
+        <li>Songs move in groups of 4 or 8 bars. A new section starts on a 1.</li>
+        <li>Singers often start a line just before the 1, so don't count from the first word.</li>
+      </ul>
+    </div>
+  </section>
+  <div class="keys">
+    <span><kbd>Space</kbd> Play / pause</span>
+    <span><kbd>1</kbd> This is the 1</span>
+    <span><kbd>T</kbd> Tap the beat</span>
+    <span><kbd>←</kbd> <kbd>→</kbd> Previous / next bar</span>
+    <span><kbd>[</kbd> <kbd>]</kbd> Move the 1</span>
+  </div>
+  <footer>Your song stays on your device: it is analyzed in this page and never uploaded. MP3, M4A, WAV, OGG and FLAC work. YouTube and Spotify links can't be opened here, so use an audio file. You can also drop a file anywhere on the page.</footer>
+</div>
+<audio id="audio" preload="auto"></audio>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('wto:' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('wto:' + k, JSON.stringify(v)); } catch (e) {} }
+};
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Each slot is one moment in the bar: count c (1-4), optional fraction f of a beat after it.
+const DANCES = {
+  count: { name: 'Just count', counting: '1, 2, 3, 4', mpm: null, slots: [
+    { c: 1, label: '1', cue: 'One', click: true },
+    { c: 2, label: '2', cue: 'Two', click: true },
+    { c: 3, label: '3', cue: 'Three', click: true },
+    { c: 4, label: '4', cue: 'Four', click: true }] },
+  rumba: { name: 'Rumba', counting: '2, 3, 4-1', mpm: [25, 27], slots: [
+    { c: 2, label: '2', cue: 'Quick', click: true, step: true },
+    { c: 3, label: '3', cue: 'Quick', click: true, step: true },
+    { c: 4, label: '4', cue: 'Slow', click: true, step: true, link: true },
+    { c: 1, label: '1', cue: 'Hips settle', hold: true }] },
+  chacha: { name: 'Cha-cha', counting: '2, 3, 4-&-1', mpm: [30, 32], slots: [
+    { c: 2, label: '2', cue: 'Step', click: true, step: true },
+    { c: 3, label: '3', cue: 'Step', click: true, step: true },
+    { c: 4, label: '4', cue: 'Cha', click: true, step: true, link: true },
+    { c: 4, f: 0.5, label: '&', cue: 'Cha', click: true, step: true, link: true },
+    { c: 1, label: '1', cue: 'Cha', click: true, step: true }] },
+  // Samba music is in 2/4 (barBeats: 2); the "a" falls a quarter beat before the next count.
+  samba: { name: 'Samba', counting: '1 a 2, 3 a 4', mpm: [50, 52], barBeats: 2, slots: [
+    { c: 1, label: '1', cue: 'Step', click: true, step: true, link: true },
+    { c: 1, f: 0.75, label: 'a', cue: 'Ball', click: true, step: true, link: true },
+    { c: 2, label: '2', cue: 'Step', click: true, step: true },
+    { c: 3, label: '3', cue: 'Step', click: true, step: true, link: true },
+    { c: 3, f: 0.75, label: 'a', cue: 'Ball', click: true, step: true, link: true },
+    { c: 4, label: '4', cue: 'Step', click: true, step: true }] },
+  sambaVolta: { name: 'Samba', counting: '1 a 2 a 3 a 4', mpm: [50, 52], barBeats: 2, slots: [
+    { c: 1, label: '1', cue: 'Cross', click: true, step: true, link: true },
+    { c: 1, f: 0.75, label: 'a', cue: 'Side', click: true, step: true, link: true },
+    { c: 2, label: '2', cue: 'Cross', click: true, step: true, link: true },
+    { c: 2, f: 0.75, label: 'a', cue: 'Side', click: true, step: true, link: true },
+    { c: 3, label: '3', cue: 'Cross', click: true, step: true, link: true },
+    { c: 3, f: 0.75, label: 'a', cue: 'Side', click: true, step: true, link: true },
+    { c: 4, label: '4', cue: 'Cross', click: true, step: true }] }
+};
+
+const S = {
+  name: '', isDemo: true, duration: 0, feats: null, peaks: null, peakRate: 100,
+  P: 0, periodAuto: 0, beats: [], ibi: 0.5, k: 0,
+  displayEvents: [], clickEvents: [], nextClick: 0, shown: -2,
+  dance: DANCES[store.get('dance', 'chacha')] ? store.get('dance', 'chacha') : 'chacha',
+  click: store.get('click', 'off'), offset: store.get('offset', 0), zoom: store.get('zoom', 6),
+  rate: 1, loop: null, taps: [], dirty: true, wasPlaying: false
+};
+
+/* ---------- search helpers ---------- */
+function upperBound(arr, x, key) {
+  let lo = 0, hi = arr.length;
+  while (lo < hi) { const m = (lo + hi) >> 1; if ((key ? key(arr[m]) : arr[m]) <= x) lo = m + 1; else hi = m; }
+  return lo;
+}
+function lowerBound(arr, x, key) {
+  let lo = 0, hi = arr.length;
+  while (lo < hi) { const m = (lo + hi) >> 1; if ((key ? key(arr[m]) : arr[m]) < x) lo = m + 1; else hi = m; }
+  return lo;
+}
+function nearestBeat(tt) {
+  const b = S.beats, i = upperBound(b, tt) - 1;
+  if (i < 0) return 0;
+  if (i + 1 < b.length && b[i + 1] - tt < tt - b[i]) return i + 1;
+  return i;
+}
+const countAt = i => ((i - S.k) % 4 + 4) % 4 + 1;
+const barAt = i => Math.floor((i - S.k) / 4) + 1;
+const median = arr => { if (!arr.length) return 0; const s = arr.slice().sort((a, b) => a - b); return s[s.length >> 1]; };
+
+/* ---------- analysis ---------- */
+const AN_SR = 11025;
+
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const half = len >> 1, ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let j = 0; j < half; j++) {
+        const a = i + j, b = a + half;
+        const xr = re[b] * cr - im[b] * ci, xi = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi;
+        const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t;
+      }
+    }
+  }
+}
+
+// Spectral flux (onsets), bass flux, loudness and 24 log-spaced bands per frame.
+async function spectralFeatures(x, sr, onProgress) {
+  const N = 512, H = 128, NB = 24, bins = N / 2 + 1;
+  const nFrames = Math.max(2, Math.floor((x.length - N) / H) + 1);
+  const win = new Float64Array(N);
+  for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N);
+  // bands cover the chord range only; the bass line has its own feature
+  const binHz = sr / N, lo = 200, hi = 5000;
+  const bandOf = new Int8Array(bins).fill(-1), bandCount = new Float64Array(NB);
+  for (let k = 1; k < bins; k++) {
+    const f = k * binHz;
+    if (f >= lo && f < hi) {
+      const b = Math.min(NB - 1, Math.floor(NB * Math.log(f / lo) / Math.log(hi / lo)));
+      bandOf[k] = b; bandCount[b]++;
+    }
+  }
+  const bassTop = Math.round(160 / binHz);
+  const flux = new Float32Array(nFrames), bass = new Float32Array(nFrames), rms = new Float32Array(nFrames);
+  const bands = new Float32Array(nFrames * NB);
+  const re = new Float64Array(N), im = new Float64Array(N);
+  let prev = new Float64Array(bins), cur = new Float64Array(bins);
+  for (let f = 0; f < nFrames; f++) {
+    const o = f * H; let e = 0;
+    for (let i = 0; i < N; i++) { const v = x[o + i] || 0; e += v * v; re[i] = v * win[i]; im[i] = 0; }
+    rms[f] = Math.sqrt(e / N);
+    fft(re, im);
+    let fl = 0, bl = 0; const bo = f * NB;
+    for (let k = 0; k < bins; k++) {
+      const m = Math.log1p(10 * Math.sqrt(re[k] * re[k] + im[k] * im[k]));
+      cur[k] = m;
+      const d = m - prev[k];
+      if (d > 0) { fl += d; if (k >= 1 && k <= bassTop) bl += d; }
+      const b = bandOf[k];
+      if (b >= 0) bands[bo + b] += m;
+    }
+    for (let b = 0; b < NB; b++) if (bandCount[b]) bands[bo + b] /= bandCount[b];
+    if (f > 0) { flux[f] = fl; bass[f] = bl; }
+    const t = prev; prev = cur; cur = t;
+    if (f % 4000 === 0) { onProgress(f / nFrames); await new Promise(r => setTimeout(r, 0)); }
+  }
+  return { flux, bass, rms, bands, NB, nFrames, fps: sr / H, t0: (N / 2) / sr };
+}
+
+function onsetEnvelope(flux, fps) {
+  const n = flux.length, w = Math.max(1, Math.round(fps * 0.4));
+  const cs = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) cs[i + 1] = cs[i] + flux[i];
+  const O = new Float32Array(n); let sq = 0;
+  for (let i = 0; i < n; i++) {
+    const a = Math.max(0, i - w), b = Math.min(n, i + w + 1);
+    const v = flux[i] - (cs[b] - cs[a]) / (b - a);
+    O[i] = v > 0 ? v : 0; sq += O[i] * O[i];
+  }
+  const sd = Math.sqrt(sq / n) || 1;
+  for (let i = 0; i < n; i++) O[i] /= sd;
+  return O;
+}
+
+// Beat period in frames: autocorrelation of the onset envelope, weighted toward dance tempos.
+function estimatePeriod(O, fps, centerBpm = 110) {
+  const n = O.length, minL = Math.floor(fps * 60 / 200), maxL = Math.ceil(fps * 60 / 50);
+  const top = Math.min(n - 1, 2 * maxL + 2), ac = new Float64Array(Math.max(top + 1, 0));
+  for (let L = minL; L <= top; L++) {
+    let s = 0;
+    for (let t = 0, m = n - L; t < m; t++) s += O[t] * O[t + L];
+    ac[L] = s / (n - L);
+  }
+  const score = L => {
+    const bpm = 60 * fps / L, w = Math.exp(-0.5 * Math.pow(Math.log2(bpm / centerBpm) / 0.9, 2));
+    return w * ((ac[L] || 0) + 0.5 * (ac[2 * L] || 0) + 0.25 * ((ac[2 * L - 1] || 0) + (ac[2 * L + 1] || 0)));
+  };
+  let bestL = minL, best = -Infinity;
+  for (let L = minL; L <= maxL; L++) { const s = score(L); if (s > best) { best = s; bestL = L; } }
+  const a = score(bestL - 1), c = score(bestL + 1), den = a - 2 * best + c;
+  const shift = den < 0 ? 0.5 * (a - c) / den : 0;
+  return bestL + Math.max(-0.5, Math.min(0.5, shift));
+}
+
+// Dynamic-programming beat tracker (Ellis 2007): beats sit on strong onsets about one period apart.
+function trackBeats(O, P, tightness = 100) {
+  const n = O.length, half = Math.max(1, Math.ceil(P / 8));
+  const win = [];
+  for (let i = -half; i <= half; i++) win.push(Math.exp(-0.5 * Math.pow(i * 32 / P, 2)));
+  const ls = new Float64Array(n);
+  for (let t = 0; t < n; t++) {
+    let s = 0;
+    for (let j = -half; j <= half; j++) { const u = t + j; if (u >= 0 && u < n) s += O[u] * win[j + half]; }
+    ls[t] = s;
+  }
+  const lo = Math.max(1, Math.round(P / 2)), hi = Math.round(2 * P);
+  const tx = new Float64Array(hi + 1);
+  for (let d = lo; d <= hi; d++) tx[d] = -tightness * Math.pow(Math.log(d / P), 2);
+  const cs = new Float64Array(n), back = new Int32Array(n).fill(-1);
+  for (let t = 0; t < n; t++) {
+    let best = -Infinity, bi = -1;
+    for (let d = lo; d <= hi && t - d >= 0; d++) { const v = cs[t - d] + tx[d]; if (v > best) { best = v; bi = t - d; } }
+    cs[t] = ls[t] + (bi >= 0 ? best : 0);
+    back[t] = bi;
+  }
+  let last = n - 1, bestEnd = -Infinity;
+  for (let t = Math.max(0, n - Math.round(2 * P)); t < n; t++) if (cs[t] > bestEnd) { bestEnd = cs[t]; last = t; }
+  const beats = [];
+  for (let t = last; t >= 0; t = back[t]) beats.push(t);
+  return beats.reverse();
+}
+
+function trimSilent(frames, f) {
+  let maxR = 0;
+  for (let i = 0; i < f.nFrames; i++) if (f.rms[i] > maxR) maxR = f.rms[i];
+  const thr = maxR * 0.01, w = Math.round(f.fps * 0.15);
+  const loud = i => {
+    let m = 0;
+    for (let j = Math.max(0, i - w); j <= Math.min(f.nFrames - 1, i + w); j++) if (f.rms[j] > m) m = f.rms[j];
+    return m > thr;
+  };
+  let a = 0, b = frames.length;
+  while (a < b && !loud(frames[a])) a++;
+  while (b > a && !loud(frames[b - 1])) b--;
+  return frames.slice(a, b);
+}
+
+// Guess which of every 4 beats is the 1: bass hits, onset strength, and harmonic change.
+function guessDownbeat(times) {
+  const f = S.feats, n = times.length;
+  if (!f || n < 8) return 0;
+  const NB = f.NB;
+  const fr = times.map(t => Math.max(0, Math.min(f.nFrames - 1, Math.round((t - f.t0) * f.fps))));
+  const seg = [];
+  for (let i = 0; i < n; i++) {
+    const a = fr[i], b = i + 1 < n ? fr[i + 1] : Math.min(f.nFrames, a + (a - fr[i - 1]));
+    const v = new Float64Array(NB); let cnt = 0;
+    for (let j = a; j < b; j++, cnt++) for (let q = 0; q < NB; q++) v[q] += f.bands[j * NB + q];
+    if (cnt) for (let q = 0; q < NB; q++) v[q] /= cnt;
+    seg.push(v);
+  }
+  const cosSim = (u, v) => {
+    let d = 0, a = 0, b = 0;
+    for (let q = 0; q < NB; q++) { d += u[q] * v[q]; a += u[q] * u[q]; b += v[q] * v[q]; }
+    return a && b ? d / Math.sqrt(a * b) : 1;
+  };
+  const sum = (i, j) => { const v = new Float64Array(NB); for (let k = i; k < j; k++) for (let q = 0; q < NB; q++) v[q] += seg[k][q]; return v; };
+  const nov = new Float64Array(n), bassAt = new Float64Array(n), onAt = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    // a bar-sized window peaks where one bar's harmony gives way to the next, which is usually the 1
+    if (i >= 4 && i + 4 <= n) nov[i] = 1 - cosSim(sum(i - 4, i), sum(i, i + 4));
+    if (i >= 2 && i + 2 <= n) nov[i] += 0.5 * (1 - cosSim(sum(i - 2, i), sum(i, i + 2)));
+    let mb = 0, mo = 0;
+    for (let j = Math.max(0, fr[i] - 2); j <= Math.min(f.nFrames - 1, fr[i] + 2); j++) {
+      if (f.bass[j] > mb) mb = f.bass[j];
+      if (f.O[j] > mo) mo = f.O[j];
+    }
+    bassAt[i] = mb; onAt[i] = mo;
+  }
+  const z = arr => {
+    let m = 0; for (const v of arr) m += v; m /= arr.length;
+    let s = 0; for (const v of arr) s += (v - m) * (v - m); s = Math.sqrt(s / arr.length) || 1;
+    return Array.from(arr, v => (v - m) / s);
+  };
+  const zn = z(nov), zb = z(bassAt), zo = z(onAt);
+  let best = 0, bestS = -Infinity;
+  for (let k = 0; k < 4; k++) {
+    let s = 0, c = 0;
+    for (let i = k; i < n; i += 4) { s += zn[i] + zb[i] + 0.5 * zo[i]; c++; }
+    s /= c;
+    if (s > bestS) { bestS = s; best = k; }
+  }
+  return best;
+}
+
+function makePeaks(x, sr, rate) {
+  const hop = sr / rate, n = Math.ceil(x.length / hop), p = new Float32Array(n);
+  let mx = 0;
+  for (let i = 0; i < n; i++) {
+    let m = 0;
+    const a = Math.floor(i * hop), b = Math.min(x.length, Math.floor((i + 1) * hop));
+    for (let j = a; j < b; j++) { const v = Math.abs(x[j]); if (v > m) m = v; }
+    p[i] = m; if (m > mx) mx = m;
+  }
+  if (mx) for (let i = 0; i < n; i++) p[i] /= mx;
+  return p;
+}
+
+async function analyze(buffer, progress) {
+  progress(0.03, 'Preparing the audio…');
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(buffer.duration * AN_SR)), AN_SR);
+  const src = off.createBufferSource();
+  src.buffer = buffer; src.connect(off.destination); src.start();
+  const x = (await off.startRendering()).getChannelData(0);
+  const peaks = makePeaks(x, AN_SR, S.peakRate);
+  const feats = await spectralFeatures(x, AN_SR, p => progress(0.08 + 0.82 * p, 'Listening for the beats…'));
+  progress(0.94, 'Finding the 1…');
+  feats.O = onsetEnvelope(feats.flux, feats.fps);
+  return { feats, peaks, P: estimatePeriod(feats.O, feats.fps) };
+}
+
+/* ---------- example groove: 16 bars of cha-cha at 124 BPM ---------- */
+// Kick on 1 and 3, cowbell on every beat, guiro on 4-&-1, bass and chords changing every bar.
+function makeDemo() {
+  const sr = 22050, bpm = 124, beat = 60 / bpm, bars = 16, lead = 0.6, TAU = 2 * Math.PI;
+  const n = Math.ceil((lead + bars * 4 * beat + 1.4) * sr), x = new Float32Array(n);
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 1073741823.5 - 1;
+  const add = (t, dur, fn) => {
+    const a = Math.round(t * sr), m = Math.min(n - a, Math.round(dur * sr));
+    for (let i = 0; i < m; i++) x[a + i] += fn(i / sr);
+  };
+  const kick = (t, p) => { let ph = 0; add(t, 0.3, s => { ph += TAU * (45 + 95 * Math.exp(-s / 0.04)) / sr; return p * Math.sin(ph) * Math.exp(-s / 0.07); }); };
+  const bell = (t, p) => add(t, 0.16, s => p * (Math.sin(TAU * 560 * s) + Math.sin(TAU * 845 * s) + 0.3 * Math.sin(TAU * 1690 * s)) * 0.45 * Math.exp(-s / 0.035));
+  const guiro = (t, p, len) => { let prev = 0; add(t, len, s => { const v = rnd(), hp = v - prev; prev = v; return p * hp * ((s % 0.014) < 0.007 ? 1 : 0.15) * (1 - s / len); }); };
+  const tone = (t, f, d, p, h2 = 0.25) => add(t, d, s => p * (Math.sin(TAU * f * s) + h2 * Math.sin(2 * TAU * f * s)) * Math.min(1, s / 0.006) * Math.exp(-s / (d * 0.35)));
+  const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+  const prog = [{ bass: 45, chord: [57, 60, 64] }, { bass: 50, chord: [57, 62, 66] }, { bass: 43, chord: [55, 59, 62] }, { bass: 48, chord: [55, 60, 64] }];
+  for (let bar = 0; bar <= bars; bar++) {
+    const b0 = lead + bar * 4 * beat;
+    kick(b0, 0.9); bell(b0, 0.5);
+    if (bar === bars) break;
+    const ch = prog[bar % 4];
+    kick(b0 + 2 * beat, 0.4);
+    for (let q = 1; q < 4; q++) bell(b0 + q * beat, 0.28);
+    guiro(b0 + 3 * beat, 0.25, beat * 0.4); guiro(b0 + 3.5 * beat, 0.25, beat * 0.4); guiro(b0 + 4 * beat, 0.25, beat * 0.4);
+    tone(b0, hz(ch.bass), beat * 1.8, 0.5, 0); tone(b0 + 2 * beat, hz(ch.bass + 7), beat * 1.5, 0.32, 0);
+    for (const at of [0, 1.5, 3]) for (const m of ch.chord) tone(b0 + at * beat, hz(m), beat * 0.9, at ? 0.05 : 0.08);
+  }
+  let peak = 0;
+  for (let i = 0; i < n; i++) if (Math.abs(x[i]) > peak) peak = Math.abs(x[i]);
+  for (let i = 0; i < n; i++) x[i] *= 0.8 / peak;
+  const buf = new AudioBuffer({ length: n, numberOfChannels: 1, sampleRate: sr });
+  buf.copyToChannel(x, 0);
+  return buf;
+}
+
+function toWav(buf) {
+  const ch = buf.getChannelData(0), n = ch.length, sr = buf.sampleRate;
+  const ab = new ArrayBuffer(44 + n * 2), v = new DataView(ab);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) { const s = Math.max(-1, Math.min(1, ch[i])); v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true); }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+/* ---------- playback ---------- */
+const audio = $('audio');
+audio.preservesPitch = true; audio.mozPreservesPitch = true; audio.webkitPreservesPitch = true;
+let actx = null;
+function ensureCtx() {
+  if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; actx = new AC(); }
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+
+// Plays through an <audio> element (speed keeps pitch); falls back to Web Audio if the element can't load the file.
+const player = {
+  mode: 'media', buffer: null, src: null, url: null, rate: 1, pos: 0, startCtx: 0, startPos: 0,
+  playing: false, lastAT: 0, lastPT: 0, lastOut: 0, duration: 0,
+  async load(blob, buffer) {
+    this.pause(); this.pos = 0; this.buffer = buffer; this.duration = buffer.duration;
+    if (this.url) URL.revokeObjectURL(this.url);
+    this.url = URL.createObjectURL(blob);
+    const ok = await new Promise(res => {
+      let timer;
+      const done = v => { audio.removeEventListener('loadedmetadata', yes); audio.removeEventListener('error', no); clearTimeout(timer); res(v); };
+      const yes = () => done(true), no = () => done(false);
+      audio.addEventListener('loadedmetadata', yes); audio.addEventListener('error', no);
+      timer = setTimeout(() => done(audio.readyState >= 1), 5000);
+      audio.src = this.url; audio.load();
+    });
+    this.mode = ok ? 'media' : 'buffer';
+    if (ok) { this.buffer = null; audio.playbackRate = this.rate; }
+    else audio.removeAttribute('src');
+  },
+  isPlaying() { return this.mode === 'media' ? !audio.paused && !audio.ended : this.playing; },
+  time() {
+    if (this.mode === 'buffer') return this.playing ? Math.min(this.duration, this.startPos + (actx.currentTime - this.startCtx) * this.rate) : this.pos;
+    const at = audio.currentTime, now = performance.now();
+    let v;
+    if (audio.paused || at !== this.lastAT) { this.lastAT = at; this.lastPT = now; v = at; }
+    else v = Math.min(this.duration, at + (now - this.lastPT) / 1000 * this.rate);
+    // the element's clock updates in steps; never let small corrections run time backwards
+    if (!audio.paused && v < this.lastOut && this.lastOut - v < 0.08) v = this.lastOut;
+    this.lastOut = v;
+    return v;
+  },
+  play() {
+    ensureCtx();
+    if (this.mode === 'media') {
+      const p = audio.play();
+      if (p && p.catch) p.catch(() => toast('The browser blocked playback. Press Play again.'));
+      return;
+    }
+    if (this.playing || !this.buffer) return;
+    if (this.pos >= this.duration - 0.05) this.pos = 0;
+    const s = actx.createBufferSource();
+    s.buffer = this.buffer; s.playbackRate.value = this.rate; s.connect(actx.destination);
+    s.onended = () => { if (this.src === s) { this.playing = false; this.pos = this.duration; this.src = null; markDirty(); } };
+    this.startCtx = actx.currentTime; this.startPos = this.pos;
+    s.start(0, this.pos); this.src = s; this.playing = true;
+  },
+  pause() {
+    if (this.mode === 'media') { audio.pause(); return; }
+    if (!this.playing) return;
+    this.pos = this.time();
+    const s = this.src; this.src = null; this.playing = false;
+    try { s.stop(); } catch (e) {}
+  },
+  seek(t) {
+    t = Math.max(0, Math.min(this.duration, t));
+    if (this.mode === 'media') { audio.currentTime = t; this.lastAT = t; this.lastPT = performance.now(); this.lastOut = t; return; }
+    const was = this.playing;
+    this.pause(); this.pos = t;
+    if (was) this.play();
+  },
+  setRate(r) {
+    this.rate = r;
+    if (this.mode === 'media') { audio.playbackRate = r; return; }
+    if (this.playing) { this.pause(); this.play(); }
+  }
+};
+
+function playClick(when, accent) {
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'triangle';
+  o.frequency.value = accent === 2 ? 1760 : accent === 1 ? 1175 : 1480;
+  const v = accent === 2 ? 0.55 : accent === 1 ? 0.38 : 0.26;
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(v, when + 0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 0.06);
+  o.connect(g).connect(actx.destination); o.start(when); o.stop(when + 0.08);
+}
+function resetSchedule() { S.nextClick = lowerBound(S.clickEvents, player.time() - S.offset, e => e.t); }
+function scheduleClicks(t) {
+  if (S.click === 'off' || !actx) return;
+  const ev = S.clickEvents, tt = t - S.offset, look = 0.15 * player.rate;
+  while (S.nextClick < ev.length && ev[S.nextClick].t < tt - 0.03) S.nextClick++;
+  while (S.nextClick < ev.length && ev[S.nextClick].t <= tt + look) {
+    const e = ev[S.nextClick++];
+    playClick(actx.currentTime + Math.max(0, (e.t - tt) / player.rate), e.accent);
+  }
+}
+
+/* ---------- beat grid state ---------- */
+function rebuildEvents() {
+  const d = DANCES[S.dance], b = S.beats, disp = [];
+  for (let i = 0; i < b.length; i++) {
+    const c = countAt(i), next = i + 1 < b.length ? b[i + 1] : b[i] + S.ibi;
+    d.slots.forEach((s, si) => { if (s.c === c) disp.push({ t: b[i] + (s.f || 0) * (next - b[i]), si, c, bar: barAt(i) }); });
+  }
+  disp.sort((x, y) => x.t - y.t);
+  S.displayEvents = disp;
+  if (S.click === 'beats') S.clickEvents = b.map((t, i) => ({ t, accent: countAt(i) === 1 ? 2 : 1 }));
+  else if (S.click === 'steps') S.clickEvents = disp.filter(e => d.slots[e.si].click).map(e => { const s = d.slots[e.si]; return { t: e.t, accent: s.f ? 0 : s.c === 1 ? 2 : 1 }; });
+  else S.clickEvents = [];
+  resetSchedule();
+  S.shown = -2;
+  markDirty();
+}
+function afterBeatsChange() {
+  const b = S.beats;
+  S.ibi = b.length > 1 ? (b[b.length - 1] - b[0]) / (b.length - 1) : 0.5;
+  rebuildEvents(); updateSongInfo();
+}
+function retrack(P) {
+  const f = S.feats;
+  P = Math.max(f.fps * 60 / 240, Math.min(f.fps * 60 / 40, P));
+  S.P = P;
+  const frames = trimSilent(trackBeats(f.O, P), f);
+  S.beats = frames.map(i => i / f.fps + f.t0);
+  S.k = guessDownbeat(S.beats);
+  S.loop = null; $('loop').value = '0';
+  afterBeatsChange();
+}
+
+/* ---------- UI ---------- */
+let C = {};
+function readColors() {
+  const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
+  C = { ink: v('--ink'), muted: v('--muted'), line: v('--line'), one: v('--one'), oneSoft: v('--one-soft'), step: v('--step'), wave: v('--wave'), wavePlayed: v('--wave-played') };
+  markDirty();
+}
+function markDirty() { S.dirty = true; }
+function fmtTime(t, tenths) {
+  t = Math.max(0, t || 0);
+  const m = Math.floor(t / 60), s = t - m * 60;
+  return m + ':' + (tenths ? s.toFixed(1).padStart(4, '0') : String(Math.floor(s)).padStart(2, '0'));
+}
+let toastTimer;
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg; el.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 2800);
+}
+function setBusy(on, msg, p) {
+  $('progress').hidden = !on;
+  if (on) { $('progressText').textContent = msg || ''; if (p != null) $('progressFill').style.width = Math.round(p * 100) + '%'; }
+}
+
+function renderSlots() {
+  const d = DANCES[S.dance], box = $('slots');
+  box.innerHTML = '';
+  box.style.gridTemplateColumns = `repeat(${d.slots.length}, minmax(0, 1fr))`;
+  box.classList.toggle('many', d.slots.length > 5);
+  for (const s of d.slots) {
+    const el = document.createElement('div');
+    el.className = 'slot' + (s.label === '1' ? ' one' : '') + (s.step ? ' step' : '') + (s.hold ? ' hold' : '');
+    el.innerHTML = `<span class="n">${s.label}</span><span class="c">${s.cue}</span>`;
+    box.appendChild(el);
+  }
+  $('countingText').textContent = d.counting;
+  const isSamba = S.dance.startsWith('samba');
+  document.querySelectorAll('[data-dance]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.dance === (isSamba ? 'samba' : S.dance))));
+  $('sambaTiming').hidden = !isSamba;
+  if (isSamba) $('sambaVariant').value = S.dance;
+  S.shown = -2;
+}
+function setupDots() {
+  const box = $('dots');
+  for (let i = 0; i < 8; i++) { const d = document.createElement('span'); d.className = 'dot' + (i === 0 ? ' first' : ''); box.appendChild(d); }
+}
+function setDots(n) {
+  [...$('dots').children].forEach((el, i) => { el.classList.toggle('on', i === n); el.classList.toggle('past', n >= 0 && i < n); });
+}
+
+function updateSongInfo() {
+  const bpm = 60 / S.ibi, d = DANCES[S.dance], bb = d.barBeats || 4;
+  $('songTag').textContent = S.isDemo ? 'Example' : 'Your song';
+  $('songName').textContent = S.name;
+  $('bpm').textContent = S.beats.length > 4 ? bpm.toFixed(1) + ' BPM' : '–';
+  $('mpm').textContent = S.beats.length > 4 ? (bpm / bb).toFixed(1) + ' MPM' : '–';
+  $('len').textContent = fmtTime(S.duration);
+  $('speedNote').textContent = S.rate === 1 ? '' : `Now ${(bpm * S.rate).toFixed(0)} BPM, ${(bpm * S.rate / bb).toFixed(1)} MPM`;
+  const fit = $('fit');
+  if (S.beats.length <= 4) { fit.textContent = 'No steady beat found. Try Tap along below.'; return; }
+  if (!d.mpm) { fit.textContent = 'Pick Rumba or Cha-cha to see where the steps go and compare the song with competition tempo.'; return; }
+  const m = bpm / bb, [lo, hi] = d.mpm;
+  const verdict = m < lo - 0.5 ? `slower than competition ${d.name} (${lo}–${hi} MPM). Fine for practice and show routines.`
+    : m > hi + 0.5 ? `faster than competition ${d.name} (${lo}–${hi} MPM).`
+    : `inside competition ${d.name} tempo (${lo}–${hi} MPM).`;
+  fit.textContent = `This song runs at ${m.toFixed(1)} bars per minute: ${verdict}`
+    + (bb === 2 ? ' Samba music is in 2/4, so a bar is 2 beats. The deep surdo drum often hits hardest on 2, so check the 1 by ear.' : '');
+}
+
+function updateStage(t, playing) {
+  const ev = S.displayEvents, tt = t - S.offset;
+  let idx = upperBound(ev, tt, e => e.t) - 1;
+  const lastBeat = S.beats[S.beats.length - 1];
+  if (idx >= 0 && tt > lastBeat + 2 * S.ibi) idx = -1;
+  if (idx === S.shown) return;
+  S.shown = idx;
+  const d = DANCES[S.dance], num = $('bigNum'), cue = $('bigCue');
+  for (const el of $('slots').children) el.classList.remove('active');
+  if (idx < 0) {
+    num.textContent = '·'; num.classList.remove('is-one');
+    cue.textContent = S.beats.length && tt > lastBeat ? 'End of the beat' : playing ? 'Waiting for the beat' : 'Press play';
+    $('barNum').textContent = '–'; setDots(-1);
+    return;
+  }
+  const e = ev[idx], s = d.slots[e.si];
+  num.textContent = s.label;
+  num.classList.toggle('is-one', s.label === '1');
+  cue.textContent = s.cue;
+  const slotEl = $('slots').children[e.si];
+  if (slotEl) slotEl.classList.add('active');
+  $('barNum').textContent = e.bar > 0 ? e.bar : 'pickup';
+  setDots(e.bar > 0 ? (e.bar - 1) % 8 : -1);
+  if (playing && !reduceMotion) { num.classList.remove('hit'); void num.offsetWidth; num.classList.add('hit'); }
+}
+
+function fitCanvas(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { g, w: r.width, h: r.height };
+}
+const FONT_D = '"Big Shoulders Display","Arial Narrow",Impact,sans-serif';
+const FONT_M = '"IBM Plex Mono",ui-monospace,Consolas,monospace';
+
+function drawDetail(t) {
+  const { g, w, h } = fitCanvas($('detail'));
+  g.clearRect(0, 0, w, h);
+  const span = S.zoom, start = t - span * 0.3, X = tm => (tm - start) / span * w;
+  const top = 36, bot = h - 34, mid = (top + bot) / 2, amp = (bot - top) / 2;
+  if (S.loop) { const a = X(S.loop.start), b = X(S.loop.end); g.fillStyle = C.oneSoft; g.fillRect(a, 0, b - a, h); }
+  const p = S.peaks, pr = S.peakRate;
+  if (p) for (let x = 0; x < w; x += 2) {
+    const t0 = start + x / w * span, t1 = start + (x + 2) / w * span;
+    const a = Math.max(0, Math.floor(t0 * pr)), b = Math.min(p.length, Math.ceil(t1 * pr));
+    if (b <= a) continue;
+    let m = 0;
+    for (let i = a; i < b; i++) if (p[i] > m) m = p[i];
+    const hh = Math.max(0.5, Math.sqrt(m) * amp);
+    g.fillStyle = t0 < t ? C.wavePlayed : C.wave;
+    g.fillRect(x, mid - hh, 1.4, hh * 2);
+  }
+  const b = S.beats, off = S.offset;
+  g.textBaseline = 'alphabetic';
+  for (let i = lowerBound(b, start - off - 1); i < b.length; i++) {
+    const x = X(b[i] + off);
+    if (x > w + 24) break;
+    const c = countAt(i), one = c === 1;
+    g.fillStyle = one ? C.one : C.line;
+    g.fillRect(Math.round(x) - (one ? 1 : 0.5), top - 6, one ? 2 : 1, bot - top + 12);
+    g.fillStyle = one ? C.one : C.muted;
+    g.textAlign = 'center';
+    g.font = `${one ? 800 : 600} ${one ? 24 : 18}px ${FONT_D}`;
+    g.fillText(String(c), x, top - 12);
+    if (one && barAt(i) > 0) { g.font = `500 10px ${FONT_M}`; g.textAlign = 'left'; g.fillText('BAR ' + barAt(i), x + 9, top - 15); }
+  }
+  const d = DANCES[S.dance], ev = S.displayEvents;
+  if (d.slots.some(s => s.step)) {
+    const y = h - 16, i0 = lowerBound(ev, start - off - 2, e => e.t);
+    g.fillStyle = C.step;
+    for (let i = i0; i < ev.length; i++) {
+      const x = X(ev[i].t + off);
+      if (x > w + 24) break;
+      if (d.slots[ev[i].si].link && i + 1 < ev.length) g.fillRect(x, y - 1.5, X(ev[i + 1].t + off) - x, 3);
+    }
+    for (let i = i0; i < ev.length; i++) {
+      const x = X(ev[i].t + off);
+      if (x > w + 24) break;
+      const s = d.slots[ev[i].si], r = i === S.shown ? 7 : 5;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
+      if (s.hold) { g.lineWidth = 1.5; g.strokeStyle = C.muted; g.stroke(); }
+      else { g.fillStyle = C.step; g.fill(); }
+    }
+  }
+  const px = X(t);
+  g.fillStyle = C.ink;
+  g.fillRect(Math.round(px) - 1, 0, 2, h);
+  g.beginPath(); g.moveTo(px - 6, 0); g.lineTo(px + 6, 0); g.lineTo(px, 7); g.closePath(); g.fill();
+}
+
+function drawOverview(t) {
+  const { g, w, h } = fitCanvas($('overview'));
+  g.clearRect(0, 0, w, h);
+  const dur = S.duration || 1, X = tm => tm / dur * w, p = S.peaks, ph = X(t);
+  if (S.loop) { g.fillStyle = C.oneSoft; g.fillRect(X(S.loop.start), 0, X(S.loop.end) - X(S.loop.start), h); }
+  if (p) {
+    const per = p.length / w;
+    for (let x = 0; x < w; x++) {
+      const a = Math.floor(x * per), b = Math.max(a + 1, Math.floor((x + 1) * per));
+      let m = 0;
+      for (let i = a; i < b && i < p.length; i++) if (p[i] > m) m = p[i];
+      const hh = Math.max(0.5, Math.sqrt(m) * (h / 2 - 9));
+      g.fillStyle = x < ph ? C.wavePlayed : C.wave;
+      g.fillRect(x, h / 2 - 3 - hh, 1, hh * 2);
+    }
+  }
+  const b = S.beats;
+  for (let i = S.k; i < b.length; i += 4) {
+    const bar = barAt(i), x = Math.round(X(b[i] + S.offset)), strong = (bar - 1) % 8 === 0;
+    g.fillStyle = strong ? C.one : C.muted;
+    g.fillRect(x, strong ? h - 9 : h - 5, 1, strong ? 9 : 5);
+  }
+  const ws = t - S.zoom * 0.3;
+  g.strokeStyle = C.muted; g.lineWidth = 1;
+  g.strokeRect(X(ws) + 0.5, 0.5, Math.max(4, X(ws + S.zoom) - X(ws)) - 1, h - 1);
+  g.fillStyle = C.ink;
+  g.fillRect(Math.round(ph) - 1, 0, 2, h);
+}
+
+function updatePlayBtn(playing) { $('play').textContent = playing ? 'Pause' : 'Play'; }
+function afterSeek() { resetSchedule(); S.shown = -2; markDirty(); }
+
+function frame() {
+  const playing = player.isPlaying();
+  let t = player.time();
+  if (playing && S.loop && t >= S.loop.end) { player.seek(S.loop.start); t = S.loop.start; afterSeek(); }
+  if (playing) scheduleClicks(t);
+  if (playing !== S.wasPlaying) { S.wasPlaying = playing; updatePlayBtn(playing); S.shown = -2; S.dirty = true; }
+  if (playing || S.dirty) {
+    S.dirty = false;
+    updateStage(t, playing);
+    drawDetail(t); drawOverview(t);
+    $('clock').textContent = `${fmtTime(t, true)} / ${fmtTime(S.duration)}`;
+  }
+  requestAnimationFrame(frame);
+}
+// keeps the click track going when the tab is in the background and animation frames pause
+setInterval(() => { if (player.isPlaying()) scheduleClicks(player.time()); }, 40);
+
+/* ---------- actions ---------- */
+function togglePlay() {
+  if (!S.beats.length && !S.duration) return;
+  if (player.isPlaying()) player.pause();
+  else { player.play(); resetSchedule(); }
+  markDirty();
+}
+function seekBar(dir) {
+  const b = S.beats;
+  if (b.length < 4) return;
+  const tt = player.time() - S.offset, i = upperBound(b, tt) - 1;
+  let target;
+  if (i < 0) target = S.k;
+  else {
+    const i1 = i - (countAt(i) - 1);
+    target = dir > 0 ? i1 + 4 : (tt - b[Math.max(0, i1)] > 0.5 ? i1 : i1 - 4);
+  }
+  target = Math.max(0, Math.min(b.length - 1, target));
+  player.seek(b[target] + S.offset - 0.03);
+  afterSeek();
+}
+function setOne() {
+  if (S.beats.length < 4) return;
+  const tt = player.time() - S.offset - (player.isPlaying() ? 0.06 * player.rate : 0);
+  const i = nearestBeat(tt);
+  S.k = ((i % 4) + 4) % 4;
+  rebuildEvents();
+  toast(`Got it: the beat at ${fmtTime(S.beats[i] + S.offset, true)} is now a 1.`);
+}
+function moveOne(dir) {
+  if (S.beats.length < 4) return;
+  S.k = (S.k + dir + 4) % 4;
+  rebuildEvents();
+  toast(dir > 0 ? 'The 1 moved one beat later.' : 'The 1 moved one beat earlier.');
+}
+function changeTempo(factor) {
+  if (!S.feats) return;
+  retrack(S.P * factor);
+  toast(`Tempo is now ${(60 / S.ibi).toFixed(1)} BPM.`);
+}
+function shiftHalf(announce) {
+  const b = S.beats;
+  if (b.length < 2) return;
+  const nb = [];
+  for (let i = 0; i + 1 < b.length; i++) nb.push((b[i] + b[i + 1]) / 2);
+  S.beats = nb;
+  S.k = guessDownbeat(nb);
+  afterBeatsChange();
+  if (announce) toast('Beat lines moved by half a beat.');
+}
+function setLoop(n) {
+  if (!n || S.beats.length < 4) { S.loop = null; markDirty(); return; }
+  const b = S.beats;
+  let i = upperBound(b, player.time() - S.offset) - 1;
+  if (i < 0) i = S.k;
+  let i1 = i - (countAt(i) - 1);
+  if (i1 < 0) i1 += 4;
+  const i2 = i1 + 4 * n;
+  const end = i2 < b.length ? b[i2] : b[b.length - 1] + (i2 - b.length + 1) * S.ibi;
+  S.loop = { start: Math.max(0, b[i1] + S.offset - 0.03), end: Math.min(S.duration, end + S.offset - 0.03) };
+  player.seek(S.loop.start);
+  afterSeek();
+}
+function tapPeriod() {
+  const iv = [];
+  for (let i = 1; i < S.taps.length; i++) iv.push(S.taps[i] - S.taps[i - 1]);
+  return median(iv);
+}
+function updateTapInfo() {
+  const n = S.taps.length;
+  $('useTaps').disabled = n < 6;
+  $('tapInfo').textContent = n === 0 ? 'No taps yet.' : n < 6 ? `${n} taps, keep going…` : `${n} taps: ${(60 / tapPeriod()).toFixed(1)} BPM`;
+}
+function tap() {
+  if (!player.isPlaying()) { toast('Press Play first, then tap on every beat.'); return; }
+  const t = player.time(), last = S.taps[S.taps.length - 1];
+  if (last != null && (t - last > 2 || t < last)) S.taps = [];
+  S.taps.push(t);
+  const btn = $('tap');
+  btn.classList.add('tapped'); setTimeout(() => btn.classList.remove('tapped'), 90);
+  updateTapInfo();
+}
+function useTaps() {
+  if (S.taps.length < 6 || !S.feats) return;
+  const taps = S.taps.slice();
+  retrack(tapPeriod() * S.feats.fps);
+  let dsum = 0;
+  for (const t of taps) { const tt = t - S.offset; dsum += Math.abs(tt - S.beats[nearestBeat(tt)]); }
+  if (dsum / taps.length > 0.25 * S.ibi) shiftHalf(false);
+  S.taps = []; updateTapInfo();
+  toast(`Tempo set from your taps: ${(60 / S.ibi).toFixed(1)} BPM. Now check where the 1 is.`);
+}
+
+let loadToken = 0;
+async function loadAudio(blob, buffer, name, isDemo) {
+  const my = ++loadToken;
+  player.pause();
+  setBusy(true, 'Listening for the beats…', 0.03);
+  const { feats, peaks, P } = await analyze(buffer, (p, msg) => { if (my === loadToken) setBusy(true, msg, p); });
+  if (my !== loadToken) return;
+  S.feats = feats; S.peaks = peaks; S.periodAuto = P; S.duration = buffer.duration; S.name = name; S.isDemo = isDemo;
+  S.taps = []; updateTapInfo();
+  await player.load(blob, buffer);
+  if (my !== loadToken) return;
+  retrack(P);
+  player.seek(0); afterSeek();
+  setBusy(false);
+  if (player.mode === 'buffer') toast('Using the backup player: here slower speeds also lower the pitch.');
+}
+async function loadFile(file) {
+  if (!file) return;
+  setBusy(true, `Opening ${file.name}…`, 0.01);
+  try {
+    const ab = await file.arrayBuffer();
+    const dctx = new OfflineAudioContext(2, 1, 22050);
+    const buffer = await new Promise((res, rej) => { const p = dctx.decodeAudioData(ab, res, rej); if (p && p.catch) p.catch(rej); });
+    await loadAudio(file, buffer, file.name.replace(/\.[^.]+$/, ''), false);
+  } catch (e) {
+    console.error(e);
+    setBusy(false);
+    toast(`Couldn't read "${file.name}". Try an MP3, M4A or WAV file.`);
+  }
+}
+
+/* ---------- wiring ---------- */
+$('loadBtn').addEventListener('click', () => $('file').click());
+$('file').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
+document.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('drag'); });
+document.addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('drag'); });
+document.addEventListener('drop', e => {
+  e.preventDefault(); document.body.classList.remove('drag');
+  const f = e.dataTransfer && e.dataTransfer.files[0];
+  if (f) loadFile(f);
+});
+const setDance = id => { S.dance = id; store.set('dance', id); renderSlots(); rebuildEvents(); updateSongInfo(); };
+document.querySelectorAll('[data-dance]').forEach(b => b.addEventListener('click', () => setDance(b.dataset.dance === 'samba' ? $('sambaVariant').value : b.dataset.dance)));
+$('sambaVariant').addEventListener('change', e => setDance(e.target.value));
+$('play').addEventListener('click', togglePlay);
+$('prevBar').addEventListener('click', () => seekBar(-1));
+$('nextBar').addEventListener('click', () => seekBar(1));
+$('speed').addEventListener('change', e => { S.rate = +e.target.value; player.setRate(S.rate); updateSongInfo(); resetSchedule(); });
+$('click').addEventListener('change', e => { S.click = e.target.value; store.set('click', S.click); ensureCtx(); rebuildEvents(); });
+$('loop').addEventListener('change', e => setLoop(+e.target.value));
+const ZOOMS = [3, 4, 6, 8, 12, 16];
+const zoomBy = dir => {
+  const i = Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(S.zoom) + dir));
+  S.zoom = ZOOMS[i] || 6; store.set('zoom', S.zoom); markDirty();
+};
+$('zoomIn').addEventListener('click', () => zoomBy(-1));
+$('zoomOut').addEventListener('click', () => zoomBy(1));
+$('setOne').addEventListener('click', setOne);
+$('oneEarlier').addEventListener('click', () => moveOne(-1));
+$('oneLater').addEventListener('click', () => moveOne(1));
+$('half').addEventListener('click', () => changeTempo(2));
+$('double').addEventListener('click', () => changeTempo(0.5));
+$('shiftHalf').addEventListener('click', () => shiftHalf(true));
+$('tap').addEventListener('click', tap);
+$('useTaps').addEventListener('click', useTaps);
+$('redetect').addEventListener('click', () => { if (!S.feats) return; retrack(S.periodAuto); toast('Beats detected again from scratch.'); });
+$('offset').addEventListener('input', e => {
+  S.offset = +e.target.value / 1000; store.set('offset', S.offset);
+  $('offsetVal').textContent = (S.offset > 0 ? '+' : '') + Math.round(S.offset * 1000) + ' ms';
+  resetSchedule(); S.shown = -2; markDirty();
+});
+audio.addEventListener('ended', markDirty);
+
+$('detail').addEventListener('click', e => {
+  if (!S.duration) return;
+  const r = e.currentTarget.getBoundingClientRect(), start = player.time() - S.zoom * 0.3;
+  player.seek(start + (e.clientX - r.left) / r.width * S.zoom);
+  afterSeek();
+});
+const ovSeek = e => {
+  if (!S.duration) return;
+  const r = $('overview').getBoundingClientRect();
+  player.seek(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * S.duration);
+  afterSeek();
+};
+$('overview').addEventListener('pointerdown', e => { e.currentTarget.setPointerCapture(e.pointerId); ovSeek(e); });
+$('overview').addEventListener('pointermove', e => { if (e.buttons & 1) ovSeek(e); });
+
+document.addEventListener('keydown', e => {
+  const tag = e.target.tagName;
+  if (e.ctrlKey || e.metaKey || e.altKey || tag === 'SELECT' || tag === 'TEXTAREA' || (tag === 'INPUT' && e.target.type !== 'range')) return;
+  if (e.key === ' ' && tag !== 'BUTTON') { e.preventDefault(); togglePlay(); }
+  else if (e.key === '1') setOne();
+  else if (e.key === 't' || e.key === 'T') tap();
+  else if (e.key === 'ArrowLeft' && tag !== 'INPUT') { e.preventDefault(); seekBar(-1); }
+  else if (e.key === 'ArrowRight' && tag !== 'INPUT') { e.preventDefault(); seekBar(1); }
+  else if (e.key === '[') moveOne(-1);
+  else if (e.key === ']') moveOne(1);
+});
+
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
+new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+new ResizeObserver(markDirty).observe($('detail'));
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(markDirty);
+
+async function init() {
+  readColors(); setupDots(); renderSlots();
+  $('click').value = S.click;
+  $('offset').value = Math.round(S.offset * 1000);
+  $('offsetVal').textContent = (S.offset > 0 ? '+' : '') + Math.round(S.offset * 1000) + ' ms';
+  if (!ZOOMS.includes(S.zoom)) S.zoom = 6;
+  requestAnimationFrame(frame);
+  try {
+    setBusy(true, 'Building the example groove…', 0.02);
+    const buf = await makeDemo();
+    if (loadToken === 0) await loadAudio(toWav(buf), buf, 'Demo cha-cha groove (124 BPM)', true);
+  } catch (e) {
+    console.error(e);
+    setBusy(false);
+    $('songName').textContent = 'Load a song to start';
+  }
+}
+init();
+})();
+</script>
+</body>
+</html>
