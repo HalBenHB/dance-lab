@@ -14,3 +14,6 @@ desktop.ini
 *.wav
 *.flac
 *.ogg
+
+# Git Bash crash logs
+*.stackdump
