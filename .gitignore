@@ -8,12 +8,19 @@ desktop.ini
 .idea/
 .claude/
 
-# Songs used for testing stay out of the repo
+# Python environment for the local server
+.venv/
+__pycache__/
+
+# Your song library and any test songs stay on your computer
+library/
 *.mp3
 *.m4a
 *.wav
 *.flac
 *.ogg
+*.webm
+*.opus
 
 # Git Bash crash logs
 *.stackdump

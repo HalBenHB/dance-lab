@@ -193,9 +193,44 @@ footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--lin
 }
 body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-radius: 18px; }
 
+/* song library (only shown when the page runs from the local server) */
+.library { display: flex; flex-direction: column; gap: 12px; }
+.search-row { position: relative; }
+.search-row svg { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+#q {
+  width: 100%; font: inherit; font-size: 1.05rem; color: var(--ink); background: var(--surface);
+  padding: 13px 112px 13px 44px; border: 1px solid var(--line); border-radius: 12px;
+}
+#q:focus-visible { outline: 2px solid var(--one); outline-offset: 1px; }
+#q:disabled { opacity: .6; }
+.search-state { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: .82rem; color: var(--muted); }
+.lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.list-col { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.list-title { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 4px 6px 2px; }
+.rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 312px; overflow-y: auto; }
+.row { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px; border-radius: 10px; }
+.row.no-thumb { grid-template-columns: minmax(0, 1fr) auto; }
+.row:hover { background: var(--surface-2); }
+.row.current { background: var(--one-soft); }
+.row.downloading { background: linear-gradient(90deg, var(--one-soft) var(--p, 0%), transparent var(--p, 0%)); }
+.thumb { width: 64px; height: 36px; object-fit: cover; border-radius: 6px; background: var(--surface-2); }
+.meta { display: flex; flex-direction: column; min-width: 0; }
+.meta .title { font-weight: 600; font-size: .92rem; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.meta .sub { font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.actions { display: flex; gap: 6px; align-items: center; }
+.btn.sm { min-height: 32px; padding: 5px 11px; font-size: .85rem; }
+.btn.ghost { background: transparent; }
+.btn.danger { border-color: var(--one); color: var(--one); }
+.progress-pill { font-family: var(--font-mono); font-size: .8rem; color: var(--muted); white-space: nowrap; }
+.saved-tag { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; color: var(--muted); }
+.empty { color: var(--muted); font-size: .9rem; padding: 10px 8px; }
+.rows.stale { opacity: .45; }
+.library-off code { font-family: var(--font-mono); font-size: .85em; }
+
 @media (max-width: 1000px) { .grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 860px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 720px) {
+  .lists { grid-template-columns: 1fr; }
   .stage-main { grid-template-columns: 1fr; }
   .big { min-height: 0; }
   .num { font-size: 8.5rem; }
@@ -224,6 +259,25 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
       <input class="vh" id="file" type="file" accept="audio/*,video/mp4" tabindex="-1" aria-hidden="true">
     </div>
   </header>
+
+  <section class="library" id="library" aria-label="Song library" hidden>
+    <div class="search-row">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+      <input id="q" type="search" placeholder="Search YouTube for a song, or paste a link" autocomplete="off" spellcheck="false" aria-label="Search YouTube">
+      <span class="search-state" id="searchState" aria-live="polite"></span>
+    </div>
+    <div class="lists">
+      <div class="list-col">
+        <h2 class="list-title">YouTube</h2>
+        <ul class="rows" id="results"><li class="empty">Type a song or artist to search.</li></ul>
+      </div>
+      <div class="list-col">
+        <h2 class="list-title">Your songs <span id="songCount"></span></h2>
+        <ul class="rows" id="songs"><li class="empty">Songs you download appear here.</li></ul>
+      </div>
+    </div>
+  </section>
+  <p class="library-off small" id="libraryOff" hidden>To search YouTube and keep a song library, start Dance Lab on your computer with <code>start.bat</code> (see the README).</p>
 
   <section class="song" aria-label="Song">
     <div class="song-name"><span class="tag" id="songTag">Example</span><strong id="songName">Building the example groove…</strong></div>
@@ -1180,24 +1234,230 @@ async function loadAudio(blob, buffer, name, isDemo) {
   setBusy(false);
   if (player.mode === 'buffer') toast('Using the backup player: here slower speeds also lower the pitch.');
 }
-async function loadFile(file) {
-  if (!file) return;
-  setBusy(true, `Opening ${file.name}…`, 0.01);
+async function loadFile(file, title) {
+  if (!file) return false;
+  const name = title || file.name.replace(/\.[^.]+$/, '');
+  setBusy(true, `Opening ${name}…`, 0.01);
   try {
     const ab = await file.arrayBuffer();
     const dctx = new OfflineAudioContext(2, 1, 22050);
     const buffer = await new Promise((res, rej) => { const p = dctx.decodeAudioData(ab, res, rej); if (p && p.catch) p.catch(rej); });
-    await loadAudio(file, buffer, file.name.replace(/\.[^.]+$/, ''), false);
+    await loadAudio(file, buffer, name, false);
+    return true;
   } catch (e) {
     console.error(e);
     setBusy(false);
-    toast(`Couldn't read "${file.name}". Try an MP3, M4A or WAV file.`);
+    toast(`Couldn't read "${name}". Try an MP3, M4A or WAV file.`);
+    return false;
   }
+}
+
+/* ---------- song library (needs the local server: start.bat) ---------- */
+const L = { results: [], songs: [], jobs: {}, current: null, armed: null, query: '', searchCtl: null, searchTimer: 0, disarmTimer: 0 };
+const onComputer = () => location.protocol === 'file:' || /^(localhost|127\.|\[::1\]|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+function button(label, cls, onClick, aria) {
+  const b = el('button', 'btn sm' + (cls ? ' ' + cls : ''), label);
+  b.type = 'button';
+  if (aria) b.setAttribute('aria-label', aria);
+  b.addEventListener('click', onClick);
+  return b;
+}
+function thumb(id) {
+  const img = el('img', 'thumb');
+  img.alt = ''; img.loading = 'lazy';
+  img.src = `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+  img.addEventListener('error', () => { img.style.visibility = 'hidden'; });
+  return img;
+}
+const subline = s => [s.channel, s.duration ? fmtTime(s.duration) : ''].filter(Boolean).join(' · ');
+
+async function api(path, opts = {}) {
+  const headers = { 'X-Dance-Lab': '1' };
+  if (opts.body) headers['Content-Type'] = 'application/json';
+  const r = await fetch(path, { ...opts, headers, cache: 'no-store' });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `Dance Lab's server answered with error ${r.status}.`);
+  return data;
+}
+
+async function initLibrary() {
+  let status = null;
+  if (location.protocol !== 'file:') {
+    try { status = await api('/api/status', { signal: AbortSignal.timeout(2500) }); } catch (e) {}
+  }
+  if (!status || !status.ok) { $('libraryOff').hidden = !onComputer(); return; }
+  $('library').hidden = false;
+  if (!status.downloader) {
+    $('q').disabled = true;
+    $('q').placeholder = 'Search is off: run update.bat to install the downloader';
+  }
+  refreshLibrary();
+}
+async function refreshLibrary() {
+  try { L.songs = (await api('/api/library')).songs; } catch (e) { toast(e.message); }
+  renderSongs();
+  for (const r of L.results) updateResultRow(r.id);
+}
+
+function renderSongs() {
+  // a pasted link says nothing about song titles, so it doesn't filter the list
+  const ul = $('songs'), q = /^https?:|youtu\.?be/i.test(L.query) ? '' : L.query.toLowerCase();
+  const list = q ? L.songs.filter(s => `${s.title} ${s.channel || ''}`.toLowerCase().includes(q)) : L.songs;
+  $('songCount').textContent = L.songs.length ? `(${L.songs.length})` : '';
+  ul.replaceChildren();
+  if (!list.length) { ul.append(el('li', 'empty', L.songs.length ? 'None of your songs match.' : 'Songs you download appear here.')); return; }
+  for (const s of list) {
+    const current = s.file === L.current, armed = s.file === L.armed;
+    const li = el('li', 'row' + (s.youtube_id ? '' : ' no-thumb') + (current ? ' current' : ''));
+    if (s.youtube_id) li.append(thumb(s.youtube_id));
+    const meta = el('div', 'meta');
+    meta.append(el('span', 'title', s.title), el('span', 'sub', subline(s) || s.file));
+    const act = el('div', 'actions');
+    act.append(
+      button(current ? 'Loaded' : 'Load', current ? '' : 'primary', () => loadFromLibrary(s)),
+      button(armed ? 'Delete?' : '×', armed ? 'ghost danger' : 'ghost', () => deleteSong(s), armed ? `Confirm deleting ${s.title}` : `Delete ${s.title}`));
+    li.append(meta, act);
+    ul.append(li);
+  }
+}
+
+function renderResults(list, emptyText) {
+  const ul = $('results');
+  ul.replaceChildren();
+  if (!list.length) { ul.append(el('li', 'empty', emptyText)); return; }
+  for (const r of list) {
+    const li = el('li', 'row');
+    li.dataset.id = r.id;
+    const meta = el('div', 'meta');
+    meta.append(el('span', 'title', r.title), el('span', 'sub', subline(r)));
+    li.append(thumb(r.id), meta, el('div', 'actions'));
+    ul.append(li);
+    updateResultRow(r.id);
+  }
+}
+function updateResultRow(id) {
+  const li = $('results').querySelector(`[data-id="${CSS.escape(id)}"]`);
+  if (!li) return;
+  const box = li.querySelector('.actions'), job = L.jobs[id], saved = L.songs.find(s => s.youtube_id === id);
+  box.replaceChildren();
+  const busy = job && (job.state === 'queued' || job.state === 'downloading');
+  li.classList.toggle('downloading', !!busy);
+  li.style.setProperty('--p', (busy ? job.percent || 0 : 0) + '%');
+  if (busy) box.append(el('span', 'progress-pill', job.state === 'queued' ? 'Starting…' : `Saving ${job.percent || 0}%`));
+  else if (saved) box.append(el('span', 'saved-tag', 'Saved'), button('Load', '', () => loadFromLibrary(saved)));
+  else box.append(button(job && job.state === 'error' ? 'Try again' : 'Download', 'primary', () => download(id)));
+}
+
+function onQuery() {
+  L.query = $('q').value.trim();
+  renderSongs();
+  clearTimeout(L.searchTimer);
+  if (L.query.length < 2) {
+    if (L.searchCtl) L.searchCtl.abort();
+    L.searchCtl = null; L.results = [];
+    $('searchState').textContent = '';
+    renderResults([], 'Type a song or artist to search.');
+    return;
+  }
+  L.searchTimer = setTimeout(runSearch, 450);
+}
+async function runSearch() {
+  const q = L.query;
+  if (q.length < 2) return;
+  if (L.searchCtl) L.searchCtl.abort();
+  const ctl = L.searchCtl = new AbortController();
+  $('searchState').textContent = 'Searching…';
+  $('results').classList.add('stale');
+  try {
+    const data = await api('/api/search?q=' + encodeURIComponent(q), { signal: ctl.signal });
+    if (ctl !== L.searchCtl) return;
+    L.results = data.results;
+    renderResults(L.results, 'No videos found. Try other words.');
+  } catch (e) {
+    if (ctl !== L.searchCtl) return;
+    L.results = [];
+    renderResults([], e.message);
+  }
+  $('searchState').textContent = '';
+  $('results').classList.remove('stale');
+}
+
+async function download(id) {
+  try { L.jobs[id] = await api('/api/download', { method: 'POST', body: JSON.stringify({ id }) }); }
+  catch (e) { toast(e.message); return; }
+  updateResultRow(id);
+  for (;;) {
+    await new Promise(r => setTimeout(r, 600));
+    let job;
+    try { job = await api('/api/jobs?id=' + encodeURIComponent(id)); }
+    catch (e) { job = { id, state: 'error', error: e.message }; }
+    L.jobs[id] = job;
+    updateResultRow(id);
+    if (job.state === 'done') {
+      await refreshLibrary();
+      toast(`Saved "${job.song.title}" to your songs.`);
+      loadFromLibrary(job.song);
+      return;
+    }
+    if (job.state === 'error') { toast(job.error || 'The download failed.'); return; }
+  }
+}
+
+async function loadFromLibrary(song) {
+  setBusy(true, `Opening ${song.title}…`, 0.01);
+  let file;
+  try {
+    const r = await fetch('/api/audio?file=' + encodeURIComponent(song.file), { cache: 'no-store' });
+    if (!r.ok) throw new Error(String(r.status));
+    const blob = await r.blob();
+    file = new File([blob], song.file, { type: blob.type });
+  } catch (e) {
+    setBusy(false);
+    toast(`Couldn't open "${song.title}". It may have been moved or deleted.`);
+    refreshLibrary();
+    return;
+  }
+  if (!(await loadFile(file, song.title))) return;
+  L.current = song.file;
+  renderSongs();
+  document.querySelector('.stage').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+}
+
+async function deleteSong(s) {
+  clearTimeout(L.disarmTimer);
+  if (L.armed !== s.file) {
+    L.armed = s.file;
+    renderSongs();
+    L.disarmTimer = setTimeout(() => { L.armed = null; renderSongs(); }, 3000);
+    return;
+  }
+  L.armed = null;
+  try {
+    await api('/api/library?file=' + encodeURIComponent(s.file), { method: 'DELETE' });
+    if (L.current === s.file) L.current = null;
+    toast(`Deleted "${s.title}".`);
+  } catch (e) { toast(e.message); }
+  refreshLibrary();
 }
 
 /* ---------- wiring ---------- */
 $('loadBtn').addEventListener('click', () => $('file').click());
-$('file').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
+$('file').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (await loadFile(f)) { L.current = null; renderSongs(); }
+});
+$('q').addEventListener('input', onQuery);
+$('q').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); clearTimeout(L.searchTimer); runSearch(); }
+});
 document.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('drag'); });
 document.addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('drag'); });
 document.addEventListener('drop', e => {
@@ -1276,6 +1536,7 @@ async function init() {
   $('offsetVal').textContent = (S.offset > 0 ? '+' : '') + Math.round(S.offset * 1000) + ' ms';
   if (!ZOOMS.includes(S.zoom)) S.zoom = 6;
   requestAnimationFrame(frame);
+  initLibrary();
   try {
     setBusy(true, 'Building the example groove…', 0.02);
     const buf = await makeDemo();
