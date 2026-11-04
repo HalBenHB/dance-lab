@@ -2,7 +2,7 @@
 
 Practice tools for Latin dance.
 
-The main tool is **Where's the One**. It plays a song and shows you the count while it plays: every beat, where each bar's 1 is, and where your feet go in Rumba, Cha-cha and Samba. You can slow the song down, loop a few bars, and add a click track.
+The main tool is **Where's the One**. It plays a song and shows you the count while it plays: every beat, where each bar's 1 is, and where your feet go in Rumba, Cha-cha, Samba, Jive and Bachata. You can slow the song down, loop a few bars, and add a click track.
 
 With its server running, either on your computer or online, it also has a search bar: find a song on YouTube, fetch it, and check its count right away.
 

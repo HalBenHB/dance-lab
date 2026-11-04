@@ -109,6 +109,7 @@ These confirm tempo only. Where the 1 landed on them hasn't been checked by ear.
 ## Known limits
 
 - Assumes 4 beats per group, even for 2/4 Samba, which is shown as two bars.
+- Fast dances can read at half tempo, because the prior centers on 110 BPM and a backbeat repeats every 2 beats. A synthesized jive groove at 172 BPM read as 86. The tempo-fit sentence then suggests **Double tempo**, which fixed it there.
 - No time-signature detection. Waltz and other 3/4 music will be counted wrong.
 - Songs with big tempo changes or rubato intros drift; tap along helps.
 - Live recordings with weak drums give weak onsets and less stable beats.

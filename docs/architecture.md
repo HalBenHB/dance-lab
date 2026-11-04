@@ -31,7 +31,7 @@ There are two layers:
 
 | Path | Role |
 |---|---|
-| `index.html` | Home page. A card for each tool and a reference table of counts and competition tempos for the five Latin dances. No JavaScript |
+| `index.html` | Home page. A card for each tool and a reference table of counts and competition tempos for the dances. No JavaScript |
 | `wheres-the-one/index.html` | The beat counter: markup, styles and about 1,000 lines of JavaScript in one IIFE |
 | `server.py` | Python HTTP server: static files, `/api/*`, download jobs, library index |
 | `start.bat` | Windows launcher. Creates `.venv` and installs requirements on the first run, then starts `server.py` |
@@ -55,25 +55,25 @@ There are two layers:
 | `#library` | Song library panel: search input `#q`, result list `#results`, saved songs `#songs`. Hidden unless the server answers |
 | `#libraryOff` | One-line hint to use `start.bat`. Shown only on local hosts without a server |
 | `.song` | Song name, tempo (BPM), bars per minute (MPM), length, tempo-fit sentence, progress bar |
-| `.stage` | Dance picker, Samba timing select, big count `#bigNum`, cue `#bigCue`, step slots `#slots`, bar number and 8-bar dots |
-| `.timeline` | Two canvases: `#detail` (a few seconds around the playhead) and `#overview` (the whole song) |
+| `.stage` | Dance picker, Samba timing select, **Start my basic here** `#cycleStart`, big count `#bigNum`, cue `#bigCue`, step slots `#slots`, bar number and 8-bar dots |
+| `.timeline` | Two canvases: `#detail` (a few seconds around the playhead; tap to play, drag to move through the song) and `#overview` (the whole song; tap to play, drag to jump) |
 | `.transport` | Previous/next bar, Play, clock, speed, click track, loop, zoom |
 | Fix the count | Six tool cards: set the 1, half/double tempo, shift half a beat, tap along, sync nudge, detect again |
-| How the counts work | Four reference cards and the keyboard shortcut list |
+| How the counts work | Six reference cards and the keyboard shortcut list |
 
 ### Script sections, in file order
 
 1. **Helpers and dance table:** `$`, `store` (localStorage with try/catch), `DANCES` (see [dances.md](dances.md)).
 2. **State `S`:** one object for everything about the loaded song and the view.
-3. **Search helpers:** `upperBound`, `lowerBound`, `nearestBeat`, `countAt`, `barAt`.
+3. **Search helpers:** `upperBound`, `lowerBound`, `nearestBeat`, `countAt`, `barAt`, `placeInCycle`, `heardBeat`.
 4. **Analysis:** `fft`, `spectralFeatures`, `onsetEnvelope`, `estimatePeriod`, `trackBeats`, `trimSilent`, `guessDownbeat`, `makePeaks`, `analyze`. See [beat-detection.md](beat-detection.md).
 5. **Example groove:** `makeDemo` synthesizes 16 bars of cha-cha at 124 BPM in a `Float32Array`; `toWav` wraps it as a WAV blob.
 6. **Playback:** `player`, which has two modes (below), plus `playClick`, `resetSchedule` and `scheduleClicks` for the click track.
 7. **Beat grid state:** `rebuildEvents`, `afterBeatsChange`, `retrack`.
 8. **UI:** colors from CSS tokens (`readColors`), `renderSlots`, `updateSongInfo`, `updateStage`, `drawDetail`, `drawOverview`, `frame`.
-9. **Actions:** play, bar seek, set or move the 1, tempo changes, half-beat shift, loop, tap tempo, `loadAudio`, `loadFile`.
+9. **Actions:** play, bar seek, set or move the 1, start the cycle (`startCycleHere`), tempo changes, half-beat shift, loop, tap tempo, `loadAudio`, `loadFile`.
 10. **Song library:** state `L`, `api()`, `initLibrary`, search, download polling, load and delete.
-11. **Wiring and `init()`.**
+11. **Wiring and `init()`,** including tap and drag on the timeline.
 
 ### State
 
@@ -87,6 +87,7 @@ There are two layers:
 | `beats` | Beat times in seconds (song time, before the sync nudge) |
 | `ibi` | Mean time between beats (first to last), used for BPM |
 | `k` | Which beat index is a 1: beat `i` has count `((i - k) mod 4) + 1` |
+| `cycleShift` | How many beats after the 1 a dance's `cycle` starts. Set by **Start my basic here**, reset when the beat grid is rebuilt |
 | `dance` | Key into `DANCES` |
 | `displayEvents` | Every slot of the dance pattern placed in time, used by the stage and the step lane |
 | `clickEvents` | What the click track plays, depending on the Click setting |
@@ -142,7 +143,7 @@ There are almost no classes. The structure comes from a few deliberate patterns:
 > All code is inside `(() => { 'use strict'; … })()`, with no globals and no imports. The page must work as a plain file and on GitHub Pages with no build step. Do not split it into modules or add a bundler without changing that constraint first.
 
 > **Data-driven dance patterns** in `DANCES`
-> Rendering, the step lane and the click track are all generated from a dance's `slots` table. Adding a dance means adding data, not code. Do not hard-code dance names in drawing or click logic. The only dance-specific branches are `barBeats` and the Samba timing select.
+> Rendering, the step lane and the click track are all generated from a dance's `slots` table. Adding a dance means adding data, not code. Do not hard-code dance names in drawing or click logic. The only dance-specific branches are `barBeats`, `cycle` and the Samba timing select.
 
 > **One interface, two playback engines** in `player`
 > The rest of the page calls `player.*` and never touches `<audio>` or Web Audio directly. Keep it that way, or the fallback mode silently breaks.

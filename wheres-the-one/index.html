@@ -107,6 +107,7 @@ kbd {
   padding: 7px 16px; border-radius: 999px; border: 1px solid var(--line); background: transparent; cursor: pointer; font-weight: 600;
 }
 .dance-pick button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.dance-pick #cycleStart { border-radius: 10px; background: var(--surface-2); margin-left: 6px; }
 .stage-main { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); gap: 20px 32px; align-items: center; }
 .big { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 13rem; }
 .num {
@@ -146,8 +147,10 @@ kbd {
 
 /* timeline */
 .timeline { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-.timeline canvas { display: block; width: 100%; cursor: pointer; touch-action: none; }
-#detail { height: 172px; }
+.timeline canvas { display: block; width: 100%; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+/* pan-y: a sideways drag moves the song, an up-and-down one still scrolls the page */
+#detail { height: 172px; cursor: grab; touch-action: pan-y; }
+#detail.dragging { cursor: grabbing; }
 #overview { height: 46px; border-top: 1px solid var(--line); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .82rem; color: var(--muted); margin-top: -8px; }
 .legend i { display: inline-block; vertical-align: middle; margin-right: 6px; }
@@ -170,7 +173,6 @@ kbd {
 .section-head h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.9rem; text-transform: uppercase; letter-spacing: .02em; line-height: 1; }
 .section-head p { color: var(--muted); max-width: 70ch; }
 .grid { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .dance-pick .timing { display: inline-flex; align-items: center; gap: 6px; font-size: .88rem; color: var(--muted); font-weight: 600; margin-left: 6px; }
 .slots.many .n { font-size: 2rem; }
 .slots.many .c { letter-spacing: .04em; }
@@ -232,7 +234,6 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
 .rows.stale { opacity: .45; }
 .library-off code { font-family: var(--font-mono); font-size: .85em; }
 
-@media (max-width: 1000px) { .grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 860px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 720px) {
   .lists { grid-template-columns: 1fr; }
@@ -241,7 +242,7 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
   .num { font-size: 8.5rem; }
 }
 @media (max-width: 560px) {
-  .grid, .grid.four { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: 1fr; }
   .slot .n { font-size: 2rem; }
   .slots.many .n { font-size: 1.5rem; }
   .slots.many .c { font-size: .58rem; letter-spacing: 0; }
@@ -257,7 +258,7 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
     <div class="brand">
       <a class="back" href="../">← Dance Lab</a>
       <h1>Where's the <span>One</span></h1>
-      <p>Load a song and watch its count: every beat, every bar, and where your feet go in Rumba, Cha-cha and Samba.</p>
+      <p>Load a song and watch its count: every beat, every bar, and where your feet go in Rumba, Cha-cha, Samba, Jive and Bachata.</p>
     </div>
     <div>
       <button class="btn primary" id="loadBtn" type="button">Load a song</button>
@@ -308,12 +309,15 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
       <button type="button" data-dance="rumba" aria-pressed="false">Rumba</button>
       <button type="button" data-dance="chacha" aria-pressed="true">Cha-cha</button>
       <button type="button" data-dance="samba" aria-pressed="false">Samba</button>
+      <button type="button" data-dance="jive" aria-pressed="false">Jive</button>
+      <button type="button" data-dance="bachata" aria-pressed="false">Bachata</button>
       <label class="timing" id="sambaTiming" for="sambaVariant" hidden>Timing
         <select id="sambaVariant">
           <option value="samba">1 a 2: basic, whisks, walks</option>
           <option value="sambaVolta">1 a 2 a 3 a 4: voltas</option>
         </select>
       </label>
+      <button type="button" id="cycleStart" hidden>Start my basic here</button>
     </div>
     <div class="stage-main">
       <div class="big" aria-hidden="true">
@@ -333,14 +337,14 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
   </section>
 
   <section class="timeline" aria-label="Timeline">
-    <canvas id="detail" aria-label="Close-up of the beats around the playhead. Click to jump."></canvas>
-    <canvas id="overview" aria-label="Whole song. Click or drag to jump."></canvas>
+    <canvas id="detail" aria-label="Close-up of the beats around the playhead. Click to play from there, or drag sideways to move through the song."></canvas>
+    <canvas id="overview" aria-label="Whole song. Click to play from there, or drag to jump."></canvas>
   </section>
   <div class="legend">
     <span><i class="l-one"></i>The 1 of each bar</span>
     <span><i class="l-step"></i>A step</span>
-    <span><i class="l-hold"></i>Rumba hold on 1</span>
-    <span>Click the timeline to jump</span>
+    <span><i class="l-hold"></i>Weight stays: Rumba hold, Bachata tap</span>
+    <span>Click or tap the timeline to play from there, drag it to move through the song</span>
   </div>
 
   <section class="transport" aria-label="Playback">
@@ -363,7 +367,7 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
     <label for="loop">Loop
       <select id="loop">
         <option value="0">Off</option><option value="1">1 bar</option><option value="2">2 bars</option>
-        <option value="4">4 bars</option><option value="8">8 bars</option>
+        <option value="3">3 bars</option><option value="4">4 bars</option><option value="8">8 bars</option>
       </select>
     </label>
     <span class="zoom"><button class="btn" id="zoomOut" type="button" aria-label="Zoom out">−</button>Zoom<button class="btn" id="zoomIn" type="button" aria-label="Zoom in">+</button></span>
@@ -411,9 +415,9 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
 
   <div class="section-head">
     <h2>How the counts work</h2>
-    <p>Rumba and Cha-cha music is in 4/4 (four beats to a bar), Samba in 2/4 (two beats). Dancers think in bars, so ballroom tempo is given in bars per minute (MPM).</p>
+    <p>Rumba, Cha-cha, Jive and Bachata music is in 4/4 (four beats to a bar), Samba in 2/4 (two beats). Dancers think in bars, so ballroom tempo is given in bars per minute (MPM).</p>
   </div>
-  <section class="grid four" aria-label="How the counts work">
+  <section class="grid" aria-label="How the counts work">
     <div class="card">
       <h3>Rumba: 2, 3, 4-1</h3>
       <p>Step on 2 and 3 (quick, quick), then step on 4 and stay on that foot through the 1 (slow). The hips finish the action on the 1. You never step on the 1.</p>
@@ -428,6 +432,16 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
       <h3>Samba: 1 a 2</h3>
       <p>Step on 1, a quick step on the a, then step on 2. The a comes a quarter beat before the 2, later and quicker than the cha-cha &amp;. Samba music is in 2/4, so each 1 a 2 is one bar. Here two bars make a group, counted 1 a 2, 3 a 4. Voltas use 1 a 2 a 3 a 4.</p>
       <p class="tempo">Competition: 50–52 MPM · 100–104 BPM</p>
+    </div>
+    <div class="card">
+      <h3>Jive: 1, 2, 3 a 4, 3 a 4</h3>
+      <p>Rock step on 1 and 2, then two chassés, each counted 3 a 4. The a comes a quarter beat before the 4. The basic takes 6 beats and bars have 4, so your 1 meets the music's 1 only every other basic. Pink always marks the music's 1, even when you're counting 3. Use <strong>Start my basic here</strong> to line up with where you start dancing, and a 3-bar loop to repeat two whole basics.</p>
+      <p class="tempo">Competition: 42–44 MPM · 168–176 BPM</p>
+    </div>
+    <div class="card">
+      <h3>Bachata: 1, 2, 3, tap</h3>
+      <p>Step on 1, 2 and 3, then tap on 4 without taking weight, often with a small hip accent. The foot that tapped takes the next step, so you change direction every bar.</p>
+      <p class="tempo">Competition (IDO): 28–32 MPM · 112–128 BPM. Many social songs run faster.</p>
     </div>
     <div class="card">
       <h3>Finding the 1 by ear</h3>
@@ -462,6 +476,7 @@ const store = {
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Each slot is one moment in the bar: count c (1-4), optional fraction f of a beat after it.
+// A dance with a cycle longer than the bar counts c through its own cycle (1 to cycle) instead.
 const DANCES = {
   count: { name: 'Just count', counting: '1, 2, 3, 4', mpm: null, slots: [
     { c: 1, label: '1', cue: 'One', click: true },
@@ -494,12 +509,28 @@ const DANCES = {
     { c: 2, f: 0.75, label: 'a', cue: 'Side', click: true, step: true, link: true },
     { c: 3, label: '3', cue: 'Cross', click: true, step: true, link: true },
     { c: 3, f: 0.75, label: 'a', cue: 'Side', click: true, step: true, link: true },
-    { c: 4, label: '4', cue: 'Cross', click: true, step: true }] }
+    { c: 4, label: '4', cue: 'Cross', click: true, step: true }] },
+  // The basic takes 6 beats and bars have 4, so it starts on the music's 1 only every other time.
+  jive: { name: 'Jive', counting: '1, 2, 3 a 4, 3 a 4', mpm: [42, 44], cycle: 6, slots: [
+    { c: 1, label: '1', cue: 'Rock', click: true, step: true },
+    { c: 2, label: '2', cue: 'Step', click: true, step: true },
+    { c: 3, label: '3', cue: 'Side', click: true, step: true, link: true },
+    { c: 3, f: 0.75, label: 'a', cue: 'Close', click: true, step: true, link: true },
+    { c: 4, label: '4', cue: 'Side', click: true, step: true },
+    { c: 5, label: '3', cue: 'Side', click: true, step: true, link: true },
+    { c: 5, f: 0.75, label: 'a', cue: 'Close', click: true, step: true, link: true },
+    { c: 6, label: '4', cue: 'Side', click: true, step: true }] },
+  // The tap moves a foot but the weight stays, so it is a hold that still clicks.
+  bachata: { name: 'Bachata', counting: '1, 2, 3, tap', mpm: [28, 32], slots: [
+    { c: 1, label: '1', cue: 'Step', click: true, step: true },
+    { c: 2, label: '2', cue: 'Step', click: true, step: true },
+    { c: 3, label: '3', cue: 'Step', click: true, step: true },
+    { c: 4, label: '4', cue: 'Tap', click: true, hold: true }] }
 };
 
 const S = {
   name: '', isDemo: true, duration: 0, feats: null, peaks: null, peakRate: 100,
-  P: 0, periodAuto: 0, beats: [], ibi: 0.5, k: 0,
+  P: 0, periodAuto: 0, beats: [], ibi: 0.5, k: 0, cycleShift: 0,
   displayEvents: [], clickEvents: [], nextClick: 0, shown: -2,
   dance: DANCES[store.get('dance', 'chacha')] ? store.get('dance', 'chacha') : 'chacha',
   click: store.get('click', 'off'), offset: store.get('offset', 0), zoom: store.get('zoom', 6),
@@ -525,6 +556,9 @@ function nearestBeat(tt) {
 }
 const countAt = i => ((i - S.k) % 4 + 4) % 4 + 1;
 const barAt = i => Math.floor((i - S.k) / 4) + 1;
+const placeInCycle = (i, n) => ((i - S.k - S.cycleShift) % n + n) % n + 1;
+// The beat the dancer means by pressing now: people press slightly after they hear it.
+const heardBeat = () => nearestBeat(player.time() - S.offset - (player.isPlaying() ? 0.06 * player.rate : 0));
 const median = arr => { if (!arr.length) return 0; const s = arr.slice().sort((a, b) => a - b); return s[s.length >> 1]; };
 
 /* ---------- analysis ---------- */
@@ -899,12 +933,13 @@ function rebuildEvents() {
   const d = DANCES[S.dance], b = S.beats, disp = [];
   for (let i = 0; i < b.length; i++) {
     const c = countAt(i), next = i + 1 < b.length ? b[i + 1] : b[i] + S.ibi;
-    d.slots.forEach((s, si) => { if (s.c === c) disp.push({ t: b[i] + (s.f || 0) * (next - b[i]), si, c, bar: barAt(i) }); });
+    const place = d.cycle ? placeInCycle(i, d.cycle) : c;
+    d.slots.forEach((s, si) => { if (s.c === place) disp.push({ t: b[i] + (s.f || 0) * (next - b[i]), si, c, bar: barAt(i) }); });
   }
   disp.sort((x, y) => x.t - y.t);
   S.displayEvents = disp;
   if (S.click === 'beats') S.clickEvents = b.map((t, i) => ({ t, accent: countAt(i) === 1 ? 2 : 1 }));
-  else if (S.click === 'steps') S.clickEvents = disp.filter(e => d.slots[e.si].click).map(e => { const s = d.slots[e.si]; return { t: e.t, accent: s.f ? 0 : s.c === 1 ? 2 : 1 }; });
+  else if (S.click === 'steps') S.clickEvents = disp.filter(e => d.slots[e.si].click).map(e => { const s = d.slots[e.si]; return { t: e.t, accent: s.f ? 0 : e.c === 1 ? 2 : 1 }; });
   else S.clickEvents = [];
   resetSchedule();
   S.shown = -2;
@@ -922,6 +957,7 @@ function retrack(P) {
   const frames = trimSilent(trackBeats(f.O, P), f);
   S.beats = frames.map(i => i / f.fps + f.t0);
   S.k = guessDownbeat(S.beats);
+  S.cycleShift = 0;
   S.loop = null; $('loop').value = '0';
   afterBeatsChange();
 }
@@ -957,7 +993,8 @@ function renderSlots() {
   box.classList.toggle('many', d.slots.length > 5);
   for (const s of d.slots) {
     const el = document.createElement('div');
-    el.className = 'slot' + (s.label === '1' ? ' one' : '') + (s.step ? ' step' : '') + (s.hold ? ' hold' : '');
+    // in a longer cycle no slot is always on the music's 1, so updateStage sets .one as it plays
+    el.className = 'slot' + (s.label === '1' && !d.cycle ? ' one' : '') + (s.step ? ' step' : '') + (s.hold ? ' hold' : '');
     el.innerHTML = `<span class="n">${s.label}</span><span class="c">${s.cue}</span>`;
     box.appendChild(el);
   }
@@ -966,6 +1003,7 @@ function renderSlots() {
   document.querySelectorAll('[data-dance]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.dance === (isSamba ? 'samba' : S.dance))));
   $('sambaTiming').hidden = !isSamba;
   if (isSamba) $('sambaVariant').value = S.dance;
+  $('cycleStart').hidden = !d.cycle;
   S.shown = -2;
 }
 function setupDots() {
@@ -986,9 +1024,11 @@ function updateSongInfo() {
   $('speedNote').textContent = S.rate === 1 ? '' : `Now ${(bpm * S.rate).toFixed(0)} BPM, ${(bpm * S.rate / bb).toFixed(1)} MPM`;
   const fit = $('fit');
   if (S.beats.length <= 4) { fit.textContent = 'No steady beat found. Try Tap along below.'; return; }
-  if (!d.mpm) { fit.textContent = 'Pick Rumba or Cha-cha to see where the steps go and compare the song with competition tempo.'; return; }
+  if (!d.mpm) { fit.textContent = 'Pick a dance to see where the steps go and compare the song with competition tempo.'; return; }
   const m = bpm / bb, [lo, hi] = d.mpm;
-  const verdict = m < lo - 0.5 ? `slower than competition ${d.name} (${lo}–${hi} MPM). Fine for practice and show routines.`
+  // detection favours about 110 BPM, so a fast song can come out at half its real tempo
+  const verdict = m * 2 >= lo * 0.75 && m * 2 <= hi * 1.1 ? `about half of competition ${d.name} (${lo}–${hi} MPM). If the counts feel too slow to dance to, press Double tempo.`
+    : m < lo - 0.5 ? `slower than competition ${d.name} (${lo}–${hi} MPM). Fine for practice and show routines.`
     : m > hi + 0.5 ? `faster than competition ${d.name} (${lo}–${hi} MPM).`
     : `inside competition ${d.name} tempo (${lo}–${hi} MPM).`;
   fit.textContent = `This song runs at ${m.toFixed(1)} bars per minute: ${verdict}`
@@ -1003,7 +1043,7 @@ function updateStage(t, playing) {
   if (idx === S.shown) return;
   S.shown = idx;
   const d = DANCES[S.dance], num = $('bigNum'), cue = $('bigCue');
-  for (const el of $('slots').children) el.classList.remove('active');
+  for (const el of $('slots').children) { el.classList.remove('active'); if (d.cycle) el.classList.remove('one'); }
   if (idx < 0) {
     num.textContent = '·'; num.classList.remove('is-one');
     cue.textContent = S.beats.length && tt > lastBeat ? 'End of the beat' : playing ? 'Waiting for the beat' : 'Press play';
@@ -1011,11 +1051,13 @@ function updateStage(t, playing) {
     return;
   }
   const e = ev[idx], s = d.slots[e.si];
+  // pink follows the music's 1, which in a longer cycle isn't always the dancer's 1
+  const onOne = e.c === 1 && !s.f;
   num.textContent = s.label;
-  num.classList.toggle('is-one', s.label === '1');
+  num.classList.toggle('is-one', onOne);
   cue.textContent = s.cue;
   const slotEl = $('slots').children[e.si];
-  if (slotEl) slotEl.classList.add('active');
+  if (slotEl) { slotEl.classList.add('active'); if (d.cycle) slotEl.classList.toggle('one', onOne); }
   $('barNum').textContent = e.bar > 0 ? e.bar : 'pickup';
   setDots(e.bar > 0 ? (e.bar - 1) % 8 : -1);
   if (playing && !reduceMotion) { num.classList.remove('hit'); void num.offsetWidth; num.classList.add('hit'); }
@@ -1140,9 +1182,10 @@ setInterval(() => { if (player.isPlaying()) scheduleClicks(player.time()); }, 40
 function togglePlay() {
   if (!S.beats.length && !S.duration) return;
   if (player.isPlaying()) player.pause();
-  else { player.play(); resetSchedule(); }
+  else resume();
   markDirty();
 }
+function resume() { player.play(); resetSchedule(); markDirty(); }
 function seekBar(dir) {
   const b = S.beats;
   if (b.length < 4) return;
@@ -1159,11 +1202,18 @@ function seekBar(dir) {
 }
 function setOne() {
   if (S.beats.length < 4) return;
-  const tt = player.time() - S.offset - (player.isPlaying() ? 0.06 * player.rate : 0);
-  const i = nearestBeat(tt);
+  const i = heardBeat();
   S.k = ((i % 4) + 4) % 4;
   rebuildEvents();
   toast(`Got it: the beat at ${fmtTime(S.beats[i] + S.offset, true)} is now a 1.`);
+}
+function startCycleHere() {
+  const n = DANCES[S.dance].cycle;
+  if (!n || S.beats.length < 4) return;
+  const i = heardBeat();
+  S.cycleShift = ((i - S.k) % n + n) % n;
+  rebuildEvents();
+  toast(`Got it: your basic now starts at ${fmtTime(S.beats[i] + S.offset, true)}.`);
 }
 function moveOne(dir) {
   if (S.beats.length < 4) return;
@@ -1183,6 +1233,7 @@ function shiftHalf(announce) {
   for (let i = 0; i + 1 < b.length; i++) nb.push((b[i] + b[i + 1]) / 2);
   S.beats = nb;
   S.k = guessDownbeat(nb);
+  S.cycleShift = 0;
   afterBeatsChange();
   if (announce) toast('Beat lines moved by half a beat.');
 }
@@ -1564,6 +1615,7 @@ document.addEventListener('drop', e => {
 const setDance = id => { S.dance = id; store.set('dance', id); renderSlots(); rebuildEvents(); updateSongInfo(); };
 document.querySelectorAll('[data-dance]').forEach(b => b.addEventListener('click', () => setDance(b.dataset.dance === 'samba' ? $('sambaVariant').value : b.dataset.dance)));
 $('sambaVariant').addEventListener('change', e => setDance(e.target.value));
+$('cycleStart').addEventListener('click', startCycleHere);
 $('play').addEventListener('click', togglePlay);
 $('prevBar').addEventListener('click', () => seekBar(-1));
 $('nextBar').addEventListener('click', () => seekBar(1));
@@ -1593,11 +1645,45 @@ $('offset').addEventListener('input', e => {
 });
 audio.addEventListener('ended', markDirty);
 
+// A press that moves less than this is a tap, not a drag.
+const DRAG_PX = 8;
+// Close-up: a sideways drag carries the song with the pointer, like pulling a tape. Sound stops until release.
+let scrub = null, scrubbed = false;
+$('detail').addEventListener('pointerdown', e => {
+  scrubbed = false;
+  if (!S.duration || scrub || e.button !== 0) return;
+  scrub = { id: e.pointerId, x: e.clientX, t: player.time(), wasPlaying: player.isPlaying() };
+  e.currentTarget.setPointerCapture(e.pointerId);
+});
+$('detail').addEventListener('pointermove', e => {
+  if (!scrub || e.pointerId !== scrub.id) return;
+  const dx = e.clientX - scrub.x;
+  if (!scrubbed) {
+    if (Math.abs(dx) < DRAG_PX) return;
+    scrubbed = true;
+    if (scrub.wasPlaying) player.pause();
+    e.currentTarget.classList.add('dragging');
+  }
+  player.seek(scrub.t - dx / e.currentTarget.getBoundingClientRect().width * S.zoom);
+  afterSeek();
+});
+// pointercancel is the browser taking over to scroll the page
+const endScrub = e => {
+  if (!scrub || e.pointerId !== scrub.id) return;
+  const { wasPlaying } = scrub;
+  scrub = null;
+  $('detail').classList.remove('dragging');
+  if (scrubbed && wasPlaying) resume();
+};
+$('detail').addEventListener('pointerup', endScrub);
+$('detail').addEventListener('pointercancel', endScrub);
+// Play from a tap in click, not pointerup: click is what phones reliably accept as permission to start audio.
 $('detail').addEventListener('click', e => {
-  if (!S.duration) return;
+  if (!S.duration || scrubbed) return;
   const r = e.currentTarget.getBoundingClientRect(), start = player.time() - S.zoom * 0.3;
   player.seek(start + (e.clientX - r.left) / r.width * S.zoom);
   afterSeek();
+  if (!player.isPlaying()) resume();
 });
 const ovSeek = e => {
   if (!S.duration) return;
@@ -1605,8 +1691,14 @@ const ovSeek = e => {
   player.seek(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * S.duration);
   afterSeek();
 };
-$('overview').addEventListener('pointerdown', e => { e.currentTarget.setPointerCapture(e.pointerId); ovSeek(e); });
-$('overview').addEventListener('pointermove', e => { if (e.buttons & 1) ovSeek(e); });
+let ovDownX = 0, ovDragged = false;
+$('overview').addEventListener('pointerdown', e => { e.currentTarget.setPointerCapture(e.pointerId); ovDownX = e.clientX; ovDragged = false; ovSeek(e); });
+$('overview').addEventListener('pointermove', e => {
+  if (!(e.buttons & 1)) return;
+  if (Math.abs(e.clientX - ovDownX) >= DRAG_PX) ovDragged = true;
+  ovSeek(e);
+});
+$('overview').addEventListener('click', () => { if (S.duration && !ovDragged && !player.isPlaying()) resume(); });
 
 document.addEventListener('keydown', e => {
   const tag = e.target.tagName;
