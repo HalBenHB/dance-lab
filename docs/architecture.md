@@ -36,7 +36,7 @@ There are two layers:
 | `server.py` | Python HTTP server: static files, `/api/*`, download jobs, library index |
 | `start.bat` | Windows launcher. Creates `.venv` and installs requirements on the first run, then starts `server.py` |
 | `update.bat` | Upgrades yt-dlp inside `.venv` |
-| `Dockerfile`, `.dockerignore` | The online image: Python, Node, ffmpeg, yt-dlp, `server.py` and the pages. Sets `DANCE_LAB_HOSTED=1` |
+| `Dockerfile`, `.dockerignore` | The online image: Python, Deno, ffmpeg, yt-dlp, `server.py` and the pages. Sets `DANCE_LAB_HOSTED=1` |
 | `render.yaml` | Render Blueprint: a free Docker web service that asks for `DANCE_LAB_PASSWORD` |
 | `requirements.txt` | `yt-dlp[default]`, unpinned on purpose (see [decisions.md](decisions.md)) |
 | `library/` | Downloaded songs plus `library.json`. Created on demand and git-ignored |

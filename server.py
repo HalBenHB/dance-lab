@@ -257,7 +257,7 @@ def run_download(job: dict) -> None:
 
 # TEMPORARY: lets us see from outside how YouTube treats this server. Remove once online downloads work.
 youtube_check: dict = {"state": "not run"}
-CHECK_CLIENTS = (None, "android_vr", "tv", "tv_simply", "web_safari", "web_embedded", "mweb", "ios", "android")
+CHECK_CLIENTS = (None,)  # runs on every wake-up, so keep it to one request type
 
 
 def check_summary(text: str) -> str:

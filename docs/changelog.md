@@ -2,6 +2,22 @@
 
 Newest first. Each entry says what changed and why. Anything under **Removed** must not come back without the owner asking for it.
 
+## 2026-11-04: First deployment to Render
+
+**Fixed**
+
+- Download errors disappeared after a few seconds. They now stay on the song's row.
+- yt-dlp's warnings, which hold the real reason for a failure, were being discarded. They're now logged, and HTTP 403 and 429 count as YouTube blocking the server.
+- The image installed Debian's Node 20, below yt-dlp's minimum of 22, so yt-dlp had no JavaScript runtime. The image now uses Deno.
+
+**Added**
+
+- A temporary self-test, `check_youtube()`, reporting on `/api/status`.
+
+**Direction**
+
+- YouTube blocks Render's address (HTTP 429 and 403), so try cookies from a spare account, then a residential proxy.
+
 ## 2026-11-04: Online mode
 
 **Added**

@@ -7,7 +7,7 @@
 | A modern browser (Chrome, Edge, Firefox, Safari) | Everything | Uses the Web Audio API, `OfflineAudioContext` and canvas |
 | Internet | Fonts, YouTube | Pages load fonts from Google Fonts; without internet they fall back to system fonts |
 | Python 3.10 or newer | Song library only | Developed on 3.13. Install from python.org and tick **Add python.exe to PATH** |
-| Node.js or Deno | Song library only, recommended | yt-dlp needs a JavaScript runtime to talk to YouTube. Without one it warns, and some downloads may fail |
+| Node.js 22+ or Deno 2.3+ | Song library only, recommended | yt-dlp needs a JavaScript runtime to talk to YouTube. Without one it warns, and some downloads may fail |
 | ffmpeg | Optional | yt-dlp uses it to tidy the downloaded m4a. Downloads were tested with ffmpeg installed |
 
 The pages alone need nothing installed.

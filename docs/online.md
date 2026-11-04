@@ -2,7 +2,7 @@
 
 Online mode gives you the full Where's the One from any browser or phone, with no computer of yours running: search YouTube, fetch a song, and see its count. It runs `server.py` on a hosting service, in a Docker container.
 
-> ⚠️ Note: this has only been tested on a local machine so far. Whether YouTube lets a given hosting service download is unknown until it's deployed (see [If YouTube blocks the server](#if-youtube-blocks-the-server)). The Dockerfile hasn't been built yet either, because Docker isn't installed on the development machine.
+> ⚠️ Note: online mode is deployed at https://dance-lab.onrender.com, and sign-in and search work there. **Downloads don't work yet, because YouTube blocks Render's address.** On 2026-11-04, a plain page request got HTTP 429, and all 9 request types yt-dlp offers got HTTP 403 or 429. See [If YouTube blocks the server](#if-youtube-blocks-the-server).
 
 ## How it differs from running on your computer
 

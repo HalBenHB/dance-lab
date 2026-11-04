@@ -94,8 +94,9 @@ For an end-to-end download test, use YouTube's first video, "Me at the zoo" (`ht
 
 ## Open questions
 
-- **Does YouTube allow the online server?** Not known until it's deployed. If it doesn't, a proxy or cookies are needed ([online.md](online.md)). The proxy option was only tested against a dead address, and the cookie option with an empty file.
-- **The Docker image hasn't been built.** Docker isn't installed on the development machine, so Render's first build is its first test. Debian's Node version must stay new enough for yt-dlp.
+- **YouTube blocks the Render server,** so online downloads need a proxy or cookies ([online.md](online.md)). The proxy option was only tested against a dead address, and the cookie option with an empty file.
+- **`check_youtube()` in `server.py` is temporary.** It reports through `/api/status` how YouTube treats the hosted server. Remove it, and the `youtubeCheck` field, once online downloads work.
+- **Docker isn't installed on the development machine,** so Render's builds are the only test of the image. A `Download failed` line in Render's logs now includes yt-dlp's warnings.
 - **Online mode on a real phone,** including how long iPhones keep songs in IndexedDB.
 - **Remember fixes per song.** Where the 1 is, the tempo and the nudge are lost on reload. `library.json` could store them per file.
 - **Patterns longer than 4 beats.** The Jive basic (6 counts) and many figures span 1½ or 2 bars. Slots would need a cycle length and a phrase offset.

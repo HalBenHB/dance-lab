@@ -1,10 +1,13 @@
 # Dance Lab online. Needs DANCE_LAB_PASSWORD; see docs/online.md.
 FROM python:3.13-slim-trixie
 
-# Node solves YouTube's JavaScript challenges for yt-dlp; ffmpeg tidies the downloaded m4a files
+# ffmpeg tidies the downloaded m4a files
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends nodejs ffmpeg \
+    && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
+
+# Deno solves YouTube's JavaScript challenges for yt-dlp. Debian's Node is older than yt-dlp's minimum (22).
+COPY --from=denoland/deno:bin-2.5.6 /deno /usr/local/bin/deno
 
 WORKDIR /app
 COPY requirements.txt .
