@@ -10,6 +10,7 @@ On your computer:
 
 Online (see docs/online.md): set DANCE_LAB_PASSWORD. Search and downloads then
 need a sign-in, and songs are only passed through to the browser, which keeps them.
+Set DANCE_LAB_DATA to a folder on a lasting disk to keep them on the server instead.
 Optional: YT_PROXY (proxy URL) and YT_COOKIES_FILE (cookies.txt path) for yt-dlp.
 """
 from __future__ import annotations
@@ -41,15 +42,22 @@ PASSWORD = os.environ.get("DANCE_LAB_PASSWORD", "")
 ONLINE = bool(PASSWORD)
 YT_PROXY = os.environ.get("YT_PROXY", "")
 YT_COOKIES_FILE = os.environ.get("YT_COOKIES_FILE", "")
+DATA_DIR = os.environ.get("DANCE_LAB_DATA", "")
+KEEPS_SONGS = bool(DATA_DIR) or not ONLINE  # otherwise each song is passed to the browser and deleted
 
 ROOT = Path(__file__).resolve().parent
-LIBRARY = Path(tempfile.gettempdir()) / "dance-lab-songs" if ONLINE else ROOT / "library"
+if DATA_DIR:
+    LIBRARY = Path(DATA_DIR).resolve()
+else:
+    LIBRARY = Path(tempfile.gettempdir()) / "dance-lab-songs" if ONLINE else ROOT / "library"
 INDEX = LIBRARY / "library.json"
 PORT = 8766
 SESSION_COOKIE = "dance_lab_session"
 SESSION_SECONDS = 30 * 24 * 3600
 MAX_FAILED_LOGINS = 10  # per 10 minutes
 TEMP_SONG_SECONDS = 3600  # online: songs the browser never collected are removed after this long
+MAX_TAGS = 20
+MAX_TAG_LENGTH = 40
 AUDIO_TYPES = {
     ".m4a": "audio/mp4", ".mp4": "audio/mp4", ".webm": "audio/webm", ".opus": "audio/ogg",
     ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".flac": "audio/flac",
@@ -146,7 +154,7 @@ def read_index() -> list[dict]:
 
 
 def write_index(songs: list[dict]) -> None:
-    LIBRARY.mkdir(exist_ok=True)
+    LIBRARY.mkdir(parents=True, exist_ok=True)
     tmp = INDEX.with_suffix(".tmp")
     tmp.write_text(json.dumps(songs, ensure_ascii=False, indent=2), "utf-8")
     tmp.replace(INDEX)
@@ -163,6 +171,28 @@ def scan_library() -> list[dict]:
                               "youtube_id": None, "added": now_iso(p.stat().st_mtime)})
     songs.sort(key=lambda s: s.get("added") or "", reverse=True)
     return songs
+
+
+def clean_tags(tags: object) -> list[str]:
+    cleaned: dict[str, str] = {}  # keyed by lower case, so "Bachata" and "bachata" count as one tag
+    for tag in tags if isinstance(tags, list) else []:
+        text = " ".join(tag.split())[:MAX_TAG_LENGTH] if isinstance(tag, str) else ""
+        if text:
+            cleaned.setdefault(text.casefold(), text)
+    return list(cleaned.values())[:MAX_TAGS]
+
+
+def set_tags(name: str, tags: object) -> list[str] | None:
+    """Saves a song's tags and returns them as saved, or None if there's no such song."""
+    cleaned = clean_tags(tags)
+    with lock:
+        songs = scan_library()
+        for song in songs:
+            if song["file"] == name:
+                song["tags"] = cleaned
+                write_index(songs)
+                return cleaned
+    return None
 
 
 # ---------- YouTube ----------
@@ -239,7 +269,7 @@ def run_download(job: dict) -> None:
             if total:
                 job["percent"] = min(99, round(100 * d.get("downloaded_bytes", 0) / total))
 
-    LIBRARY.mkdir(exist_ok=True)
+    LIBRARY.mkdir(parents=True, exist_ok=True)
     log = YdlLog()
     opts = ydl_options(
         outtmpl=str(LIBRARY / "%(title).90B [%(id)s].%(ext)s"),
@@ -249,7 +279,7 @@ def run_download(job: dict) -> None:
         **audio_options(),
     )
     try:
-        if ONLINE:
+        if not KEEPS_SONGS:
             remove_old_temp_songs()
         info = fetch_audio(job["id"], opts, log)
         path = Path(info["requested_downloads"][0]["filepath"])
@@ -362,7 +392,8 @@ class Handler(SimpleHTTPRequestHandler):
     def api_get(self, path: str, qs: dict) -> None:
         arg = lambda name: (qs.get(name) or [""])[0].strip()
         if path == "/api/status":
-            status = {"ok": True, "online": ONLINE, "signedIn": self.has_session(), "downloader": HAS_DOWNLOADER}
+            status = {"ok": True, "online": ONLINE, "signedIn": self.has_session(), "downloader": HAS_DOWNLOADER,
+                      "keepsSongs": KEEPS_SONGS}
             if not ONLINE:
                 status["library"] = str(LIBRARY)
             if os.environ.get("RENDER_GIT_COMMIT"):  # lets anyone check which version is live
@@ -402,12 +433,12 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         with path.open("rb") as f:
             shutil.copyfileobj(f, self.wfile)
-        if ONLINE:  # the browser has it now, and an interrupted transfer raises before this line
+        if not KEEPS_SONGS:  # the browser has it now, and an interrupted transfer raises before this line
             path.unlink(missing_ok=True)
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path not in ("/api/download", "/api/login"):
+        if path not in ("/api/download", "/api/login", "/api/tags"):
             return self.send_json({"error": "Unknown address."}, 404)
         if not self.from_page():
             return None
@@ -421,6 +452,11 @@ class Handler(SimpleHTTPRequestHandler):
             return self.login(str(body.get("password", "")))
         if not self.signed_in():
             return None
+        if path == "/api/tags":
+            tags = set_tags(str(body.get("file", "")), body.get("tags"))
+            if tags is None:
+                return self.send_json({"error": "That song isn't in your library any more."}, 404)
+            return self.send_json({"tags": tags})
         if not HAS_DOWNLOADER:
             return self.send_json({"error": "The downloader isn't installed. Run start.bat or update.bat."}, 503)
         video_id = str(body.get("id", ""))
@@ -470,6 +506,10 @@ def main() -> None:
     if hosted and not ONLINE:
         print("DANCE_LAB_PASSWORD isn't set. Set a password first, so strangers can't use your downloader.")
         sys.exit(1)
+    if DATA_DIR and ROOT in (LIBRARY, *LIBRARY.parents):
+        # files in here are served as pages, without the password
+        print(f"DANCE_LAB_DATA can't be inside the Dance Lab folder ({ROOT}). Choose a folder outside it.")
+        sys.exit(1)
 
     parser = argparse.ArgumentParser(description="Dance Lab server")
     # hosting services say which port to use; on a computer, PORT may mean something else entirely
@@ -493,9 +533,8 @@ def main() -> None:
     else:
         print("Song search is off because yt-dlp isn't installed. Run start.bat or update.bat.")
     if ONLINE:
-        print("Online mode: sign-in required. Songs go to the browser and aren't kept here.")
-    else:
-        print(f"Songs are saved in {LIBRARY}")
+        print("Online mode: sign-in required.")
+    print(f"Songs are saved in {LIBRARY}" if KEEPS_SONGS else "Songs go to the browser and aren't kept here.")
     print("Close this window or press Ctrl+C to stop.")
     if not args.no_browser and not hosted:
         threading.Timer(0.8, webbrowser.open, [url]).start()

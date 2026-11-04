@@ -14,7 +14,8 @@ Use these terms exactly, in code, docs and messages.
 | **a** | A quarter beat before the next count (¾ through the beat). Samba 1 a 2, Jive 3 a 4 | The cha-cha "&" | Slot with `f: 0.75` |
 | **quick / slow** | Rumba timing: one beat (quick) or two beats (slow, 4-1) | Speed control | Rumba cues |
 | **basic** | A dance's basic pattern of steps. In Jive, 6 beats: a rock step and two chassés | A bar | `DANCES.jive`, `#cycleStart` |
-| **tap** | Bachata count 4: the foot touches the floor and the weight stays | A step | Bachata cue, slot with `hold` |
+| **timing** | One way of counting a dance, such as Bachata as 1 to 8 or as 1, 2, 3, tap. The steps stay the same | A song's tempo | `#timing`, `DANCES[*].group` |
+| **tap** | Bachata counts 4 and 8: the foot touches the floor and the weight stays | A step | Bachata cue, slot with `hold` |
 | **BPM** | Beats per minute | MPM | `#bpm` |
 | **MPM** | Bars ("measures") per minute, the unit for ballroom tempos. BPM ÷ 4, or ÷ 2 for Samba | BPM | `#mpm`, `DANCES[*].mpm` |
 | **competition tempo** | WDSF tempo range per dance in MPM (IDO for Bachata) | The song's own tempo | Tempo-fit sentence, home page table |
@@ -29,7 +30,7 @@ Use these terms exactly, in code, docs and messages.
 | **big count** | The large number (or & / a) on the stage | `#bigNum` |
 | **cue** | The word under the big count and in slot boxes (Quick, Cha, Ball…) | `slot.cue`, `#bigCue` |
 | **slot** | One moment of a dance pattern within a 4-beat group or a cycle | `DANCES[*].slots` |
-| **cycle** | A pattern's length in beats, when it doesn't fit the 4-beat group. Jive: 6 | `DANCES[*].cycle`, `placeInCycle(i, n)` |
+| **cycle** | A pattern's length in beats, when it doesn't fit the 4-beat group. Jive: 6, Bachata: 8 | `DANCES[*].cycle`, `placeInCycle(i, n)` |
 | **step** | A slot where a foot moves; amber | `slot.step` |
 | **hold** | A slot where the weight stays (rumba 1, bachata tap); hollow ring | `slot.hold` |
 | **step lane** | The row of amber dots along the bottom of the timeline | `drawDetail` |
@@ -40,8 +41,9 @@ Use these terms exactly, in code, docs and messages.
 | **example groove** | The synthesized 16-bar cha-cha the page opens with | `makeDemo()` |
 | **song library** | Saved songs plus YouTube search, served by the local server | `#library`, `library/` |
 | **Your songs** | The saved-songs list in the library panel | `#songs` |
+| **tag** | A label you give a song. A song can have several, and picking one shows only its songs | `song.tags`, `#tagFilter` |
 | **local server** | `server.py` on your own computer, started by `start.bat` | — |
-| **online mode** | `server.py` with `DANCE_LAB_PASSWORD` set: sign-in required, songs kept in the browser | `ONLINE`, `L.online`, [online.md](online.md) |
+| **online mode** | `server.py` with `DANCE_LAB_PASSWORD` set: sign-in required, songs kept in the browser unless `DANCE_LAB_DATA` is set | `ONLINE`, `L.online`, [online.md](online.md) |
 | **hosted** | Running in the Docker image on a hosting service (`DANCE_LAB_HOSTED`). Hosted always means online mode, but online mode can also be tried locally | `main()` in `server.py` |
 | **backup player** | Web Audio playback used when `<audio>` can't load the file | `player.mode === 'buffer'` |
 
@@ -50,12 +52,13 @@ Use these terms exactly, in code, docs and messages.
 | These sound alike | The difference |
 |---|---|
 | `S.k` and the 1 | `S.k` is an index offset (0–3); the 1 is the beat it marks |
-| the 1 and the dancer's 1 | The 1 is the music's, and it's pink. In Jive the dancer's count also has a 1 (the rock step), which falls on the music's 1 or 3 |
+| the 1 and the dancer's 1 | The 1 is the music's, and it's pink. In Jive the dancer's count also has a 1 (the rock step), which falls on the music's 1 or 3. In 8-count Bachata, the music's 1 falls on the dancer's 1 and 5, so a pink 5 is normal |
 | `S.cycleShift` and `S.offset` | `cycleShift` is how many beats after the 1 a cycle starts; `offset` is the sync nudge in seconds |
 | `S.P` and `S.ibi` | `P` is the period in analysis frames, used for tracking; `ibi` is seconds between beats, used for display |
 | `displayEvents` and `clickEvents` | Display covers every slot, including holds; click covers only what the current Click setting plays |
 | beat time and display time | `S.beats` are song times; what you see and hear is `beat + S.offset` |
-| `samba` and `sambaVolta` | Two `DANCES` entries behind one Samba button, chosen by the Timing select |
+| `samba` and `sambaVolta` | Two `DANCES` entries behind one Samba button, chosen by the Timing select. Jive and Bachata work the same way |
+| `bachata` and `bachataTap` | The 8-count default and 1, 2, 3, tap. Older docs and changelog entries use `bachata` for the second one |
 
 ## Terms to avoid
 
@@ -63,6 +66,6 @@ Use these terms exactly, in code, docs and messages.
 |---|---|---|
 | downbeat (in the interface) | the 1 | Dancers say "the one"; "downbeat" is fine in code comments and docs about detection |
 | measure | bar | Shorter, and matches MPM wording on the page |
-| playlist | song library / Your songs | It isn't ordered or played in sequence |
+| playlist | tag / Your songs | Tags aren't ordered or played in sequence |
 | BPM for competition tempo | MPM | Ballroom rules use bars per minute |
 | app | page or tool | They're web pages, nothing to install |

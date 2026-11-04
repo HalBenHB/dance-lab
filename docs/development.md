@@ -21,16 +21,19 @@ set DANCE_LAB_PASSWORD=local-test-only
 
 Then open `http://localhost:8767/wheres-the-one/`. It uses a temp folder and IndexedDB, not `library/`.
 
+To try keeping songs on the host as well, also set `DANCE_LAB_DATA` to a folder outside the repo. To test tags or deleting without touching your real songs, set it without the password and copy a song or two into that folder.
+
 ## Fragile areas
 
 - **Downbeat guess** (`guessDownbeat`). It's the least reliable part, and small weight changes flip songs between beat 1 and beat 3. Test any change against the example groove and at least one real song.
+- **Half-beat correction** (`bassBetweenBeats`). It moves the whole grid, so a wrong firing puts every count on the "and". After changing it, check that only "Hit the Road Jack" moves among the saved songs, or the equivalent on the songs you have.
 - **Timing between audio and display.** The display combines the `<audio>` clock (`player.time()`), the sync nudge (`S.offset`) and the click scheduling look-ahead (0.15 s times speed). A change to one of them shows up as early or late counts.
 - **Song-load races.** `loadAudio` awaits analysis and then `player.load`. `loadToken` drops outdated loads. Any new `await` in that path must check the token afterwards.
 - **`% 4` everywhere.** `countAt`, `barAt`, loops, bar seeking and the overview ticks all assume 4-beat groups. Changing the group size touches all of them. A dance's `cycle` only changes where its slots go.
 - **yt-dlp and YouTube.** These break from the outside. Before debugging `server.py`, run `update.bat`, and look at the server console, which prints the raw yt-dlp error.
 - **Download jobs live in memory.** Restarting the server forgets running jobs. The page then shows an error for them, and the file may be half-written in `library/`. yt-dlp leaves `.part` files, which the library ignores.
 - **Threading.** `jobs` and `library.json` writes are protected by `lock`. Keep every write to `library.json` inside `with lock:`.
-- **Two modes.** Song library changes must work with both `diskStore` and `browserStore`. Test on your computer and in online mode.
+- **Three setups.** Song library changes must work with both `diskStore` and `browserStore`. Test on your computer, in online mode, and in online mode with `DANCE_LAB_DATA`. Use `keepsSongs` and `L.store` to tell where songs live. `L.online` only means a sign-in is needed.
 - **Background tabs.** The stage, clock and play button update from animation frames, which stop in hidden tabs and hidden test panes. A clock stuck at `0:00` there doesn't mean playback failed: check `audio.currentTime`.
 
 ## Checklist before committing
@@ -107,8 +110,10 @@ For an end-to-end download test, use YouTube's first video, "Me at the zoo" (`ht
 - **Online mode on a real phone,** including how long iPhones keep songs in IndexedDB.
 - **Remember fixes per song.** Where the 1 is, the tempo and the nudge are lost on reload. `library.json` could store them per file.
 - **Paso Doble** isn't in the counter yet.
-- **Jive and Bachata on real songs.** So far they've only been checked on synthesized grooves. How often real jive reads at half tempo, and how well the 1 is found, isn't known.
+- **Where to keep songs online.** The owner wants songs kept on the host. `DANCE_LAB_DATA` is ready for a paid Render disk, about $7.25 a month. A free cloud storage bucket is the other choice, and would need more code. See [online.md](online.md#keeping-songs-on-the-host).
+- **Jive and Bachata on real songs.** "Hit the Road Jack" is the only real song checked for them, and it isn't a bachata. How often real jive reads at half tempo, how well the 1 is found on real bachata, and whether a pushed bass throws off its tempo as it did on a synthesized groove (see [beat-detection.md](beat-detection.md)), aren't known.
+- **Bar › while paused.** Each jump lands 30 ms before the 1, so the next press finds the same bar and the song stays put. It works while playing, and ‹ Bar isn't affected. `seekBar` needs to look from just after where it landed.
 - **Timeline dragging on a real phone.** Touch was tested with simulated touch events and the phone-width view, not a real iPhone or Android. Check that a tap starts audio, that a sideways drag moves the song, and that an up-and-down swipe scrolls the page.
-- **Each dance has one pattern.** Jive has only the basic, though many figures in every dance run on other counts. Each new pattern would be a new `DANCES` entry, like the Samba timings.
+- **Few patterns per dance.** Many figures in every dance run on other counts. Each new pattern would be a new `DANCES` entry with a `group`, like the Samba and Jive timings. The cues on Jive's 7 and 8 just say Step, because the steps there depend on the figure.
 - **No automated tests.** The example groove could become a headless test (for example Node plus an `OfflineAudioContext` polyfill), but nothing runs today.
 - **Phones talking to the server.** `--lan` was written but hasn't been tested on a real phone.

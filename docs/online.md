@@ -10,11 +10,32 @@ Online mode is live at https://dance-lab.onrender.com/wheres-the-one/. Full song
 |---|---|---|
 | Address | `http://localhost:8766/wheres-the-one/` | `https://<your-service>.onrender.com/wheres-the-one/` |
 | Search and downloads | Open | Need the password |
-| Where songs are kept | `library/` on your computer | In each browser, on that device (IndexedDB) |
+| Where songs are kept | `library/` on your computer | In each browser, on that device (IndexedDB), unless the host has a [lasting disk](#keeping-songs-on-the-host) |
 | What the server keeps | Your songs | Nothing. Each song is deleted as soon as the browser has it |
 | Switched on by | Default | `DANCE_LAB_PASSWORD` is set |
 
 The GitHub Pages site is separate and doesn't change: it has no search bar.
+
+## Keeping songs on the host
+
+Set `DANCE_LAB_DATA` to a folder on a lasting disk, and online mode keeps songs and their tags there, the way your computer keeps them in `library/`. Every signed-in device then sees the same songs.
+
+**The live service doesn't do this yet,** because Render's free plan can't: free web services can't have a persistent disk, and they [lose every file](https://render.com/docs/free) each time they sleep or redeploy.
+
+On Render it takes a paid plan and a disk. From [Render's pricing page](https://render.com/pricing), in November 2026: the Starter instance is $7 a month and disks are $0.25 per GB per month. At about 5 MB a song, 1 GB holds roughly 200 songs.
+
+1. In the Render service, change the instance type to **Starter**.
+2. Add a persistent disk to the service: 1 GB, with the mount path `/var/data`.
+3. On its **Environment** page, add `DANCE_LAB_DATA` with the value `/var/data/songs`.
+4. Save and redeploy, then check that `keepsSongs` is `true` on `/api/status`.
+
+Things to know:
+
+- With a disk, a deploy [takes the service down for a few seconds](https://render.com/docs/disks), and it can't scale to more than one instance.
+- Songs already saved in a browser stay in that browser, but the page stops listing them. Download them again to put them on the server.
+- This stores copyrighted songs on a rented server, so keep the password to yourself.
+
+The folder can't be inside the Dance Lab folder, because everything in there is served as pages without the password. The server refuses to start if it is.
 
 ## Setting it up on Render
 
@@ -81,7 +102,7 @@ YouTube changes often. When downloads start failing with other errors, get the n
 
 ## Where your songs are
 
-Songs are saved in the browser on each device, so a song fetched on your phone isn't on your laptop.
+Without `DANCE_LAB_DATA`, songs and their tags are saved in the browser on each device, so a song fetched on your phone isn't on your laptop.
 
 They're removed if you clear that browser's site data. Browsers can also clear stored data when a device is low on space, and Safari may clear it after a long time without use. Adding the page to your phone's home screen helps. The page asks the browser to keep the data, but the browser decides. If a song disappears, download it again.
 
@@ -99,6 +120,7 @@ They're removed if you clear that browser's site data. Browsers can also clear s
 | `DANCE_LAB_PASSWORD` | Yes | Turns on online mode and sets the password |
 | `DANCE_LAB_HOSTED` | Set by the Dockerfile | Listens on all interfaces, uses `PORT`, doesn't open a browser, and refuses to start without a password |
 | `PORT` | Set by Render | The port to listen on. Ignored unless hosted, because on a computer it can mean something else |
+| `DANCE_LAB_DATA` | No | Folder on a lasting disk where songs and tags are kept. Without it, online mode keeps nothing. See [Keeping songs on the host](#keeping-songs-on-the-host) |
 | `YT_PROXY` | No | Proxy URL for yt-dlp |
 | `YT_COOKIES_FILE` | No | Path to a `cookies.txt`, copied to a temp folder because yt-dlp writes to it |
 | `RENDER_GIT_COMMIT` | Set by Render | The deployed commit, shown as `commit` on `/api/status` |

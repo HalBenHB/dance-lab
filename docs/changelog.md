@@ -2,6 +2,32 @@
 
 Newest first. Each entry says what changed and why. Anything under **Removed** must not come back without the owner asking for it.
 
+## 2026-11-05: The owner's counts, tags, and beats that follow the bass
+
+**Fixed**
+
+- "Hit the Road Jack" was counted half a beat off. Its handclaps are louder than anything else and sit exactly between the bass notes, so the beat lines locked onto them, and no choice of the 1 could be right. `bassBetweenBeats` now moves the grid half a beat when the bass hits and note changes both fall between the lines. The 1 now lands on the first bass note of every bar. The other saved songs don't move. See [beat-detection.md](beat-detection.md).
+- Saved songs lists no longer jump back to the top when a row redraws.
+
+**Added**
+
+- Tags on songs, with a filter above **Your songs**. They're stored in `library.json`, or with the song in the browser when songs live there. The owner asked for playlists or tags; see [decisions.md](decisions.md) for why it's tags.
+- `DANCE_LAB_DATA`: a folder on a lasting disk to keep songs and tags in, online too. `/api/status` reports `keepsSongs`, and the page chooses where songs live from that. It isn't turned on for the live service, because Render's free plan has no lasting disk.
+- A **Timing** select for any dance with more than one count, driven by `group` in `DANCES`. It replaces the Samba-only select.
+- Jive timing 1 2 3 a 4 5 a 6 7 8.
+
+**Changed**
+
+- Bachata now defaults to 1 2 3 4 5 6 7 8, the owner's count, with taps on 4 and 8. 1, 2, 3, tap is under **Timing**.
+- Jive now defaults to 1 2 3 a 4 5 a 6, the owner's count. 1, 2, 3 a 4, 3 a 4 is under **Timing**.
+- **Start my basic here** keeps your start on the same beat when you change to a timing of another length.
+
+**Direction**
+
+- Decide where online songs should live: a paid Render disk, or a free cloud storage bucket.
+- Test on real Bachata songs. A synthesized groove with a strongly pushed bass read at two-thirds of its tempo.
+- Stars and saving a song's details without its audio are still open from the last entry.
+
 ## 2026-11-05: Online downloads work
 
 The owner downloaded a real song on the live server, and it played and stayed saved.

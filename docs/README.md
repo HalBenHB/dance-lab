@@ -12,7 +12,7 @@ They are written for developers and for AI assistants working on the code. If yo
 - **Maturity:** a working personal tool, used by one dancer and their studio. No automated tests.
 - **Key constraints:**
   - Every page must keep working as a plain static file on GitHub Pages, without the server.
-  - Songs a user loads from their device are never uploaded. In online mode, the server keeps no song after passing it to the browser.
+  - Songs a user loads from their device are never uploaded. In online mode, the server keeps no song after passing it to the browser, unless `DANCE_LAB_DATA` points it at a lasting disk.
   - No build tools.
 
 ## Files in this folder

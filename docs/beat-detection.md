@@ -48,7 +48,31 @@ This follows small tempo changes while staying close to `P`.
 
 Leading and trailing beats are dropped where the loudest frame within ±0.15 s is below 1% of the song's peak loudness (−40 dB). Without this, the beat chain continues through silent intros and endings.
 
-### 7. The 1 (`guessDownbeat`)
+### 7. Are the beats on the bass? (`bassBetweenBeats`)
+
+Claps and snares are often the loudest sounds in a song, so step 5 can lock onto them while the bass walks half a beat away. Then no choice of the 1 can be right, because the whole grid is off. "Hit the Road Jack" did this: its bass walks G#, F#, E, D#, one note a beat, with handclaps exactly between the notes.
+
+The check compares the detected beats with the points halfway between them, on two things the drums don't influence much:
+
+| Measure | How |
+|---|---|
+| Bass hits | Highest `bass` flux within ±2 frames |
+| Bass note changes | `1 − cos` between the 12-note bass profile (`bassNotes`, E1 to G3) of the 45% of a beat before the point and the 45% after it |
+
+If both are below 0.8 of their halfway value, the beats move to the midpoints. Needing both keeps it from firing on a bass that is merely syncopated. It runs inside `retrack()`, so Half tempo, Double tempo, Tap along and Detect again all pass through it. **Shift half a beat** undoes it by hand.
+
+`bassNotes` reads `feats.low`, the sound at 1/8 of the analysis sample rate (`lowSignal`). That's enough to tell bass notes apart, and much cheaper to keep and to search.
+
+| Song | Bass hits | Note changes | Moved |
+|---|---|---|---|
+| "Hit the Road Jack" | 0.63 | 0.67 | Yes |
+| "Jesus to a Child" | 0.86 | 1.60 | No |
+| "Sway" | 1.08 | 1.54 | No |
+| "Banto (Samba 51)" | 2.03 | 1.04 | No |
+
+(Values are on-beat divided by halfway. Below 1 means more happens between the beats.)
+
+### 8. The 1 (`guessDownbeat`)
 
 Every 4th beat is a 1, so there are only four candidates: `k = 0, 1, 2, 3`. Each beat gets three features, z-scored across the song:
 
@@ -64,7 +88,7 @@ Each candidate `k` scores the mean of `harmonic + bass + 0.5 · onset` over its 
 
 This is the weakest step. Songs where 1 and 3 sound alike, samba with the surdo accent on 2, and songs with pickups can all fool it. That's why the page has the Fix the count tools.
 
-### 8. Tempo and bars per minute
+### 9. Tempo and bars per minute
 
 - `S.ibi` = (last beat − first beat) / (number of beats − 1). This is the mean, not the median: the median is rounded to whole frames (11.6 ms) and showed 123.0 instead of 124.0 BPM on the example.
 - BPM = 60 / `ibi`. MPM = BPM / `barBeats` (4, or 2 for Samba).
@@ -103,13 +127,16 @@ It is the test fixture for detection: expected downbeats are `0.6 + n · 1.935 s
 |---|---|---|
 | "Banto (Samba 51)" | 102.0 BPM (51 MPM) | 51 MPM, from its title |
 | "Jesus to a Child" (official video, 4:43) | 86.9 BPM | Not checked against another source |
+| "Sway" (Michael Bublé, lyric video) | 126.3 BPM | Not checked against another source |
+| "Hit the Road Jack" (Ray Charles, lyrics video) | 86.8 BPM, or 173.6 with **Double tempo** | The 1 on G#, the start of the bass line G#, F#, E, D#, in 41 of 41 bars. With **Double tempo**, on G# and E |
 
-These confirm tempo only. Where the 1 landed on them hasn't been checked by ear.
+The first three confirm tempo only. Where the 1 landed on them hasn't been checked by ear. "Hit the Road Jack" was checked by reading the bass note on each beat, not by ear. No real Bachata song has been tested yet.
 
 ## Known limits
 
 - Assumes 4 beats per group, even for 2/4 Samba, which is shown as two bars.
 - Fast dances can read at half tempo, because the prior centers on 110 BPM and a backbeat repeats every 2 beats. A synthesized jive groove at 172 BPM read as 86. The tempo-fit sentence then suggests **Double tempo**, which fixed it there.
+- A strongly pushed bass can fool the tempo. A synthesized bachata groove at 125 BPM, with the bass on 1, 2&, 3 and 4&, read as 83: two-thirds of the real tempo. How often this happens on real bachata isn't known. **Tap along** is the tool to try when it does.
 - No time-signature detection. Waltz and other 3/4 music will be counted wrong.
 - Songs with big tempo changes or rubato intros drift; tap along helps.
 - Live recordings with weak drums give weak onsets and less stable beats.

@@ -19,14 +19,16 @@ chacha: { name: 'Cha-cha', counting: '2, 3, 4-&-1', mpm: [30, 32], slots: [
 | `counting` | Shown as "Count it as …" |
 | `mpm` | Competition tempo `[min, max]` in bars per minute, or `null` |
 | `barBeats` | Beats per musical bar for MPM. Leave it out for 4; Samba uses 2 |
-| `cycle` | Length of the pattern in beats, when it doesn't fit the 4-beat group. Leave it out for 4; Jive uses 6 |
+| `cycle` | Length of the pattern in beats, when it doesn't fit the 4-beat group. Leave it out for 4; Jive uses 6 and Bachata 8 |
+| `group` | Which dance this is another way of counting: the key of that dance's main entry. Leave it out on the main entry, which is the default |
+| `timing` | Text in the **Timing** select. Leave it out to use `counting` |
 | `slots` | The moments in each 4-beat group (or cycle), in the order the dancer counts them |
 
 Each slot:
 
 | Field | Meaning |
 |---|---|
-| `c` | Which count (1–4) the slot is attached to. With `cycle`, its place in the cycle (1–6 for Jive) |
+| `c` | Which count (1–4) the slot is attached to. With `cycle`, its place in the cycle (1–6 for the Jive basic) |
 | `f` | Fraction of a beat after that count (0 if left out). Cha-cha `&` = 0.5; Samba and Jive `a` = 0.75 |
 | `label` | Text in the slot box and the big count |
 | `cue` | Word under it, such as Quick, Slow, Cha, Ball |
@@ -54,10 +56,13 @@ From the slots, `rebuildEvents()` makes `S.displayEvents`, with every slot of ev
 | `chacha` | Cha-cha | 2, 3, 4-&-1 | 2, 3, then 4, &, 1 linked (the chassé) |
 | `samba` | Samba, timing "1 a 2" | 1 a 2, 3 a 4 | 1, a (at 1.75), 2, then 3, a (at 3.75), 4 |
 | `sambaVolta` | Samba, timing "1 a 2 a 3 a 4" | 1 a 2 a 3 a 4 | Cross on each beat, side on each a |
-| `jive` | Jive | 1, 2, 3 a 4, 3 a 4 | Rock step on 1 and 2, then two chassés. A 6-beat `cycle` |
-| `bachata` | Bachata | 1, 2, 3, tap | Steps on 1, 2 and 3, then a tap on 4 that clicks but keeps the weight (`hold`) |
+| `jive` | Jive, the default timing | 1 2 3 a 4 5 a 6 | Rock step on 1 and 2, then two chassés. A 6-beat `cycle` |
+| `jive8` | Jive, timing "1 2 3 a 4 5 a 6 7 8" | 1 2 3 a 4 5 a 6 7 8 | The basic plus two steps on 7 and 8. An 8-beat `cycle` |
+| `jiveRepeat` | Jive, timing "1, 2, 3 a 4, 3 a 4" | 1, 2, 3 a 4, 3 a 4 | The basic, with both chassés counted 3 a 4. A 6-beat `cycle` |
+| `bachata` | Bachata, the default timing | 1 2 3 4 5 6 7 8 | Steps on 1, 2, 3 and 5, 6, 7, with taps on 4 and 8 that click but keep the weight (`hold`). An 8-beat `cycle` |
+| `bachataTap` | Bachata, timing "1, 2, 3, tap" | 1, 2, 3, tap | The same steps counted in one bar |
 
-The Samba button picks the variant shown in the **Timing** select (`#sambaVariant`). That select is visible only while Samba is chosen. `S.dance` stores the variant key (`samba` or `sambaVolta`), and the Samba button's pressed state covers both.
+A dance's button picks the entry shown in the **Timing** select (`#timing`), which lists every entry of that `group`, the main entry first. The select is visible only for dances with more than one entry. `S.dance` stores the entry's key, and the button's pressed state covers the whole group. Going back to a dance keeps the timing you picked for it until the page reloads; after that, the saved dance opens with its saved timing and the others with their defaults.
 
 ## Patterns longer than the bar
 
@@ -66,14 +71,16 @@ The Jive basic takes 6 beats and bars have 4, so the basic drifts across the bar
 | Bar | 1 | 2 | 3 | 4 |
 |---|---|---|---|---|
 | 1 | **1** Rock | 2 Step | 3 a | 4 |
-| 2 | **3** a | 4 | 1 Rock | 2 Step |
-| 3 | **3** a | 4 | 3 a | 4 |
+| 2 | **5** a | 6 | 1 Rock | 2 Step |
+| 3 | **3** a | 4 | 5 a | 6 |
 
-The top row and the pink lines on the timeline are the music's count. The table cells are what the dancer counts. So the stage can show a pink 3 (the music's 1 under the second chassé) and a plain 1 (the rock step on the music's 3).
+The top row and the pink lines on the timeline are the music's count. The table cells are what the dancer counts. So the stage can show a pink 5 or 3 (the music's 1 under a chassé) and a plain 1 (the rock step on the music's 3).
+
+The 8-count patterns, Bachata and Jive with 7 8, fit two bars exactly, so the music's 1 falls on the dancer's 1 and 5 every time.
 
 - **Where the cycle starts:** by default on the first 1 of the song, plus `S.cycleShift` beats. **Start my basic here** (`#cycleStart`, shown only for dances with `cycle`) sets the shift so the dancer's 1 is on the current beat.
-- **The shift follows the 1.** It's counted from `S.k`, so moving the 1 moves the basic with it. Anything that rebuilds the beat grid (`retrack`, `shiftHalf`) resets it to 0.
-- **Loops:** only a 3-bar loop repeats the basic without a break. Every other loop length restarts it mid-pattern.
+- **The shift follows the 1.** It's counted from `S.k`, so moving the 1 moves the basic with it. Anything that rebuilds the beat grid (`retrack`, `shiftHalf`) resets it to 0. It isn't reduced to one cycle, so your start stays on the same beat when you change to a timing of another length.
+- **Loops:** the 6-count Jive repeats without a break only on a 3-bar loop. The 8-count patterns repeat on 2, 4 or 8 bars. Every other loop length restarts the pattern mid-way.
 - **Bars don't change.** Bar numbers, the 8-bar dots, loops and bar seeking still use `% 4`. Only the placing of slots in `rebuildEvents` uses the cycle.
 
 ## Counts and tempos
@@ -85,8 +92,8 @@ These match the reference table on the home page.
 | Rumba | 4/4 | 2, 3, 4-1 | 25–27 | 100–108 | Yes |
 | Cha-cha | 4/4 | 2, 3, 4-&-1 | 30–32 | 120–128 | Yes |
 | Samba | 2/4 | 1 a 2 | 50–52 | 100–104 | Yes |
-| Jive | 4/4 | 1, 2, 3 a 4, 3 a 4 | 42–44 | 168–176 | Yes |
-| Bachata | 4/4 | 1, 2, 3, tap | 28–32 | 112–128 | Yes |
+| Jive | 4/4 | 1 2 3 a 4 5 a 6 | 42–44 | 168–176 | Yes |
+| Bachata | 4/4 | 1 2 3 4 5 6 7 8 | 28–32 | 112–128 | Yes |
 | Paso Doble | 2/4 | 1, 2 | 60–62 | 120–124 | Not yet |
 
 Tempos follow WDSF competition rules, except Bachata. No official WDSF figure for Bachata was found, so its range comes from the Bachata section of the [IDO rule list of September 2026](https://www.ido-dance.com/files/ido/downloads/2026/2026-September-LIST-of-IDO-rule-changes-after-AGAM-ADMs.pdf), for solo, duo and couples. Many social bachata songs run faster than that. Show and social routines in the other dances often use slower music, such as "Jesus to a Child" for rumba, which the counter reads at about 87 BPM, or 22 MPM.
@@ -114,6 +121,6 @@ Example: Paso Doble, which marches one step per beat. Its music is in 2/4, so it
 2. Add a button inside `.dance-pick`: `<button type="button" data-dance="paso" aria-pressed="false">Paso Doble</button>`.
 3. Optionally, add a card under "How the counts work", and change "Not yet" to "Yes" in the home page table.
 
-You don't need any drawing or click code. For a pattern that doesn't fit 4 beats, add `cycle` and number `c` through the cycle; see `jive`. Keep cues short: at phone width, a slot box with 8 slots is about 31 px wide, and "Replace" didn't fit.
+You don't need any drawing or click code. For a pattern that doesn't fit 4 beats, add `cycle` and number `c` through the cycle; see `jive`. To add another way of counting a dance, add an entry with `group` set to that dance's key; it appears under **Timing** with no other code. Keep cues short: at phone width, a slot box with 8 slots is about 31 px wide, and "Replace" didn't fit. Patterns with more than 8 slots wrap to rows of 5 at phone width.
 
 > ⚠️ Note: the tempo prior centers on 110 BPM, so a fast song can be detected at half tempo. A synthesized jive groove at 172 BPM read as 86. When a song reads about half of the chosen dance's range, the tempo-fit sentence says to press **Double tempo**, which gave 172.0 BPM on that groove.

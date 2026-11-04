@@ -25,7 +25,7 @@ You need [Python](https://www.python.org/downloads/) installed once.
 1. Double-click **`start.bat`**. The first time, it sets itself up, which takes about a minute.
 2. Your browser opens Where's the One with a search bar on top.
 3. Type a song name, click **Download**, and the song loads into the counter.
-4. Your downloaded songs stay in the list under **Your songs** for next time.
+4. Your downloaded songs stay in the list under **Your songs** for next time. Press **+ Tag** to label a song, for example "Bachata" or "Monday class", then pick a tag above the list to see only those songs.
 
 Keep the black window open while you use it, and close it when you're done.
 If search or downloads stop working, double-click **`update.bat`**.
@@ -38,11 +38,11 @@ The full version runs on a hosting service, so it works from any phone or browse
 
 To set up your own, follow [docs/online.md](docs/online.md).
 
-Songs you fetch this way are saved in the browser on that device.
+Songs you fetch this way are saved in the browser on that device. To keep them on the server and see them on every device, it needs a paid plan with a disk: see [Keeping songs on the host](docs/online.md#keeping-songs-on-the-host).
 
 ### If the count looks wrong
 
-Press **1** on your keyboard (or the **This is the 1** button) at the moment you hear the one. More fixes are under **Fix the count** on the page.
+Press **1** on your keyboard (or the **This is the 1** button) at the moment you hear the one. More fixes are under **Fix the count** on the page. To count a dance another way, such as Bachata as 1, 2, 3, tap or Jive with 7 8, use the **Timing** menu next to the dances.
 
 ## What's in this repo
 

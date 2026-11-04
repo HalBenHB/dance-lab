@@ -119,7 +119,7 @@ kbd {
 @keyframes hit { from { transform: scale(1.09); } to { transform: scale(1); } }
 .cue { margin-top: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-size: .95rem; }
 .side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.slots { display: grid; gap: 8px; }
+.slots { display: grid; gap: 8px; grid-template-columns: repeat(var(--slots, 4), minmax(0, 1fr)); }
 .slot {
   display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px 9px;
   border: 1px solid var(--line); border-radius: 12px; transition: background-color .08s, color .08s;
@@ -233,6 +233,20 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
 .empty { color: var(--muted); font-size: .9rem; padding: 10px 8px; }
 .rows.stale { opacity: .45; }
 .row-error { font-size: .8rem; font-weight: 500; line-height: 1.35; margin-top: 2px; }
+.tag-filter { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 6px 6px; }
+.song-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 4px; }
+.chip {
+  display: inline-flex; align-items: center; min-height: 26px; padding: 2px 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: .78rem; font-weight: 600; cursor: pointer;
+}
+.chip:hover { border-color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.chip.song-tag { background: var(--surface-2); color: var(--ink); cursor: default; padding-right: 2px; }
+.chip.song-tag:hover { border-color: var(--line); }
+.chip.song-tag button { border: 0; background: none; color: var(--muted); font-size: .95rem; line-height: 1; padding: 2px 6px; cursor: pointer; }
+.chip.song-tag button:hover { color: var(--ink); }
+.tag-form { display: flex; flex: 1 1 100%; gap: 4px; }
+.tag-form input { flex: 1 1 90px; min-width: 0; font: inherit; font-size: .85rem; color: var(--ink); background: var(--surface); padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; }
 .library-off code { font-family: var(--font-mono); font-size: .85em; }
 
 @media (max-width: 860px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -245,6 +259,7 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
 @media (max-width: 560px) {
   .grid { grid-template-columns: 1fr; }
   .slot .n { font-size: 2rem; }
+  .slots.long { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .slots.many .n { font-size: 1.5rem; }
   .slots.many .c { font-size: .58rem; letter-spacing: 0; }
   .stats { gap: 16px; }
@@ -286,6 +301,8 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
       </div>
       <div class="list-col">
         <h2 class="list-title"><span id="songsTitle">Your songs</span> <span id="songCount"></span></h2>
+        <div class="tag-filter" id="tagFilter" role="group" aria-label="Show only songs with this tag" hidden></div>
+        <datalist id="tagOptions"></datalist>
         <ul class="rows" id="songs"><li class="empty">Songs you download appear here.</li></ul>
       </div>
     </div>
@@ -312,12 +329,7 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
       <button type="button" data-dance="samba" aria-pressed="false">Samba</button>
       <button type="button" data-dance="jive" aria-pressed="false">Jive</button>
       <button type="button" data-dance="bachata" aria-pressed="false">Bachata</button>
-      <label class="timing" id="sambaTiming" for="sambaVariant" hidden>Timing
-        <select id="sambaVariant">
-          <option value="samba">1 a 2: basic, whisks, walks</option>
-          <option value="sambaVolta">1 a 2 a 3 a 4: voltas</option>
-        </select>
-      </label>
+      <label class="timing" id="timingPick" for="timing" hidden>Timing <select id="timing"></select></label>
       <button type="button" id="cycleStart" hidden>Start my basic here</button>
     </div>
     <div class="stage-main">
@@ -435,13 +447,13 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
       <p class="tempo">Competition: 50–52 MPM · 100–104 BPM</p>
     </div>
     <div class="card">
-      <h3>Jive: 1, 2, 3 a 4, 3 a 4</h3>
-      <p>Rock step on 1 and 2, then two chassés, each counted 3 a 4. The a comes a quarter beat before the 4. The basic takes 6 beats and bars have 4, so your 1 meets the music's 1 only every other basic. Pink always marks the music's 1, even when you're counting 3. Use <strong>Start my basic here</strong> to line up with where you start dancing, and a 3-bar loop to repeat two whole basics.</p>
+      <h3>Jive: 1 2 3 a 4 5 a 6</h3>
+      <p>Rock step on 1 and 2, then two chassés, 3 a 4 and 5 a 6. The a comes a quarter beat before the next count. The basic takes 6 beats and bars have 4, so your 1 meets the music's 1 only every other basic. Pink always marks the music's 1, even when you're counting 3 or 5. Use <strong>Start my basic here</strong> to line up with where you start dancing, and a 3-bar loop to repeat two whole basics. Figures that add 7 8 are under <strong>Timing</strong>.</p>
       <p class="tempo">Competition: 42–44 MPM · 168–176 BPM</p>
     </div>
     <div class="card">
-      <h3>Bachata: 1, 2, 3, tap</h3>
-      <p>Step on 1, 2 and 3, then tap on 4 without taking weight, often with a small hip accent. The foot that tapped takes the next step, so you change direction every bar.</p>
+      <h3>Bachata: 1 2 3 4 5 6 7 8</h3>
+      <p>Step on 1, 2 and 3, then tap on 4 without taking weight, often with a small hip accent. The foot that tapped takes the next step, so you go back the other way: step on 5, 6 and 7, tap on 8. The 8 counts cover two bars, so the music's 1 falls on your 1 and your 5. If you count each bar as 1, 2, 3, tap, pick that under <strong>Timing</strong>.</p>
       <p class="tempo">Competition (IDO): 28–32 MPM · 112–128 BPM. Many social songs run faster.</p>
     </div>
     <div class="card">
@@ -476,8 +488,20 @@ const store = {
 };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// The Jive basic counted straight through: a rock step, then two chasses.
+const JIVE_BASIC = [
+  { c: 1, label: '1', cue: 'Rock', click: true, step: true },
+  { c: 2, label: '2', cue: 'Step', click: true, step: true },
+  { c: 3, label: '3', cue: 'Side', click: true, step: true, link: true },
+  { c: 3, f: 0.75, label: 'a', cue: 'Close', click: true, step: true, link: true },
+  { c: 4, label: '4', cue: 'Side', click: true, step: true },
+  { c: 5, label: '5', cue: 'Side', click: true, step: true, link: true },
+  { c: 5, f: 0.75, label: 'a', cue: 'Close', click: true, step: true, link: true },
+  { c: 6, label: '6', cue: 'Side', click: true, step: true }];
+
 // Each slot is one moment in the bar: count c (1-4), optional fraction f of a beat after it.
 // A dance with a cycle longer than the bar counts c through its own cycle (1 to cycle) instead.
+// An entry with a group is another way of counting that dance, listed under Timing. The group's own entry is the default.
 const DANCES = {
   count: { name: 'Just count', counting: '1, 2, 3, 4', mpm: null, slots: [
     { c: 1, label: '1', cue: 'One', click: true },
@@ -496,14 +520,14 @@ const DANCES = {
     { c: 4, f: 0.5, label: '&', cue: 'Cha', click: true, step: true, link: true },
     { c: 1, label: '1', cue: 'Cha', click: true, step: true }] },
   // Samba music is in 2/4 (barBeats: 2); the "a" falls a quarter beat before the next count.
-  samba: { name: 'Samba', counting: '1 a 2, 3 a 4', mpm: [50, 52], barBeats: 2, slots: [
+  samba: { name: 'Samba', timing: '1 a 2: basic, whisks, walks', counting: '1 a 2, 3 a 4', mpm: [50, 52], barBeats: 2, slots: [
     { c: 1, label: '1', cue: 'Step', click: true, step: true, link: true },
     { c: 1, f: 0.75, label: 'a', cue: 'Ball', click: true, step: true, link: true },
     { c: 2, label: '2', cue: 'Step', click: true, step: true },
     { c: 3, label: '3', cue: 'Step', click: true, step: true, link: true },
     { c: 3, f: 0.75, label: 'a', cue: 'Ball', click: true, step: true, link: true },
     { c: 4, label: '4', cue: 'Step', click: true, step: true }] },
-  sambaVolta: { name: 'Samba', counting: '1 a 2 a 3 a 4', mpm: [50, 52], barBeats: 2, slots: [
+  sambaVolta: { name: 'Samba', group: 'samba', timing: '1 a 2 a 3 a 4: voltas', counting: '1 a 2 a 3 a 4', mpm: [50, 52], barBeats: 2, slots: [
     { c: 1, label: '1', cue: 'Cross', click: true, step: true, link: true },
     { c: 1, f: 0.75, label: 'a', cue: 'Side', click: true, step: true, link: true },
     { c: 2, label: '2', cue: 'Cross', click: true, step: true, link: true },
@@ -512,17 +536,24 @@ const DANCES = {
     { c: 3, f: 0.75, label: 'a', cue: 'Side', click: true, step: true, link: true },
     { c: 4, label: '4', cue: 'Cross', click: true, step: true }] },
   // The basic takes 6 beats and bars have 4, so it starts on the music's 1 only every other time.
-  jive: { name: 'Jive', counting: '1, 2, 3 a 4, 3 a 4', mpm: [42, 44], cycle: 6, slots: [
-    { c: 1, label: '1', cue: 'Rock', click: true, step: true },
+  jive: { name: 'Jive', counting: '1 2 3 a 4 5 a 6', mpm: [42, 44], cycle: 6, slots: JIVE_BASIC },
+  jive8: { name: 'Jive', group: 'jive', counting: '1 2 3 a 4 5 a 6 7 8', mpm: [42, 44], cycle: 8, slots: [
+    ...JIVE_BASIC,
+    { c: 7, label: '7', cue: 'Step', click: true, step: true },
+    { c: 8, label: '8', cue: 'Step', click: true, step: true }] },
+  jiveRepeat: { name: 'Jive', group: 'jive', counting: '1, 2, 3 a 4, 3 a 4', mpm: [42, 44], cycle: 6,
+    slots: JIVE_BASIC.map(s => (s.c > 4 && !s.f ? { ...s, label: String(s.c - 2) } : s)) },
+  // Two bars counted straight through. The tap moves a foot but the weight stays, so it is a hold that still clicks.
+  bachata: { name: 'Bachata', counting: '1 2 3 4 5 6 7 8', mpm: [28, 32], cycle: 8, slots: [
+    { c: 1, label: '1', cue: 'Step', click: true, step: true },
     { c: 2, label: '2', cue: 'Step', click: true, step: true },
-    { c: 3, label: '3', cue: 'Side', click: true, step: true, link: true },
-    { c: 3, f: 0.75, label: 'a', cue: 'Close', click: true, step: true, link: true },
-    { c: 4, label: '4', cue: 'Side', click: true, step: true },
-    { c: 5, label: '3', cue: 'Side', click: true, step: true, link: true },
-    { c: 5, f: 0.75, label: 'a', cue: 'Close', click: true, step: true, link: true },
-    { c: 6, label: '4', cue: 'Side', click: true, step: true }] },
-  // The tap moves a foot but the weight stays, so it is a hold that still clicks.
-  bachata: { name: 'Bachata', counting: '1, 2, 3, tap', mpm: [28, 32], slots: [
+    { c: 3, label: '3', cue: 'Step', click: true, step: true },
+    { c: 4, label: '4', cue: 'Tap', click: true, hold: true },
+    { c: 5, label: '5', cue: 'Step', click: true, step: true },
+    { c: 6, label: '6', cue: 'Step', click: true, step: true },
+    { c: 7, label: '7', cue: 'Step', click: true, step: true },
+    { c: 8, label: '8', cue: 'Tap', click: true, hold: true }] },
+  bachataTap: { name: 'Bachata', group: 'bachata', counting: '1, 2, 3, tap', mpm: [28, 32], slots: [
     { c: 1, label: '1', cue: 'Step', click: true, step: true },
     { c: 2, label: '2', cue: 'Step', click: true, step: true },
     { c: 3, label: '3', cue: 'Step', click: true, step: true },
@@ -627,7 +658,62 @@ async function spectralFeatures(x, sr, onProgress) {
     const t = prev; prev = cur; cur = t;
     if (f % 4000 === 0) { onProgress(f / nFrames); await new Promise(r => setTimeout(r, 0)); }
   }
-  return { flux, bass, rms, bands, NB, nFrames, fps: sr / H, t0: (N / 2) / sr };
+  return { flux, bass, rms, bands, NB, nFrames, fps: sr / H, t0: (N / 2) / sr, low: lowSignal(x, 8), lowRate: sr / 8 };
+}
+
+// The sound at a low sample rate, which is all it takes to tell bass notes apart and much cheaper to keep.
+function lowSignal(x, by) {
+  const y = new Float32Array(Math.floor(x.length / by));
+  for (let i = 0; i < y.length; i++) {
+    let s = 0;
+    for (let j = 0; j < by; j++) s += x[i * by + j];
+    y[i] = s / by;
+  }
+  return y;
+}
+
+// How strongly each of the 12 notes sounds in the bass (E1 to G3) during a stretch of the song.
+function bassNotes(f, t, dur) {
+  const a = Math.max(0, Math.round(t * f.lowRate)), n = Math.min(f.low.length - a, Math.round(dur * f.lowRate));
+  const notes = new Float64Array(12);
+  if (n < 8) return notes;
+  const win = new Float64Array(n);
+  for (let i = 0; i < n; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / n);
+  for (let m = 28; m <= 55; m++) {
+    const c = 2 * Math.cos(2 * Math.PI * 440 * Math.pow(2, (m - 69) / 12) / f.lowRate);
+    let s1 = 0, s2 = 0;
+    for (let i = 0; i < n; i++) { const s = f.low[a + i] * win[i] + c * s1 - s2; s2 = s1; s1 = s; }
+    notes[m % 12] += s1 * s1 + s2 * s2 - c * s1 * s2;
+  }
+  return notes;
+}
+
+const cosine = (u, v) => {
+  let d = 0, a = 0, b = 0;
+  for (let q = 0; q < u.length; q++) { d += u[q] * v[q]; a += u[q] * u[q]; b += v[q] * v[q]; }
+  return a && b ? d / Math.sqrt(a * b) : 1;
+};
+const midpoints = times => times.slice(1).map((t, i) => (times[i] + t) / 2);
+
+// Claps and snares are often the loudest sounds, so the beat lines can lock onto them while the bass
+// walks half a beat away. True when the bass hits and its note changes both fall clearly between the lines.
+function bassBetweenBeats(times) {
+  const f = S.feats;
+  if (!f || times.length < 8) return false;
+  const hit = t => {
+    const c = Math.round((t - f.t0) * f.fps);
+    let m = 0;
+    for (let j = Math.max(0, c - 2); j <= Math.min(f.nFrames - 1, c + 2); j++) if (f.bass[j] > m) m = f.bass[j];
+    return m;
+  };
+  const change = (t, w) => 1 - cosine(bassNotes(f, t - w, w), bassNotes(f, t, w));
+  let hitOn = 0, hitOff = 0, changeOn = 0, changeOff = 0;
+  for (let i = 1; i + 1 < times.length; i++) {
+    const gap = times[i + 1] - times[i], mid = times[i] + gap / 2, w = gap * 0.45;
+    hitOn += hit(times[i]); hitOff += hit(mid);
+    changeOn += change(times[i], w); changeOff += change(mid, w);
+  }
+  return hitOn < 0.8 * hitOff && changeOn < 0.8 * changeOff;
 }
 
 function onsetEnvelope(flux, fps) {
@@ -722,17 +808,12 @@ function guessDownbeat(times) {
     if (cnt) for (let q = 0; q < NB; q++) v[q] /= cnt;
     seg.push(v);
   }
-  const cosSim = (u, v) => {
-    let d = 0, a = 0, b = 0;
-    for (let q = 0; q < NB; q++) { d += u[q] * v[q]; a += u[q] * u[q]; b += v[q] * v[q]; }
-    return a && b ? d / Math.sqrt(a * b) : 1;
-  };
   const sum = (i, j) => { const v = new Float64Array(NB); for (let k = i; k < j; k++) for (let q = 0; q < NB; q++) v[q] += seg[k][q]; return v; };
   const nov = new Float64Array(n), bassAt = new Float64Array(n), onAt = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     // a bar-sized window peaks where one bar's harmony gives way to the next, which is usually the 1
-    if (i >= 4 && i + 4 <= n) nov[i] = 1 - cosSim(sum(i - 4, i), sum(i, i + 4));
-    if (i >= 2 && i + 2 <= n) nov[i] += 0.5 * (1 - cosSim(sum(i - 2, i), sum(i, i + 2)));
+    if (i >= 4 && i + 4 <= n) nov[i] = 1 - cosine(sum(i - 4, i), sum(i, i + 4));
+    if (i >= 2 && i + 2 <= n) nov[i] += 0.5 * (1 - cosine(sum(i - 2, i), sum(i, i + 2)));
     let mb = 0, mo = 0;
     for (let j = Math.max(0, fr[i] - 2); j <= Math.min(f.nFrames - 1, fr[i] + 2); j++) {
       if (f.bass[j] > mb) mb = f.bass[j];
@@ -955,8 +1036,8 @@ function retrack(P) {
   const f = S.feats;
   P = Math.max(f.fps * 60 / 240, Math.min(f.fps * 60 / 40, P));
   S.P = P;
-  const frames = trimSilent(trackBeats(f.O, P), f);
-  S.beats = frames.map(i => i / f.fps + f.t0);
+  const beats = trimSilent(trackBeats(f.O, P), f).map(i => i / f.fps + f.t0);
+  S.beats = bassBetweenBeats(beats) ? midpoints(beats) : beats;
   S.k = guessDownbeat(S.beats);
   S.cycleShift = 0;
   S.loop = null; $('loop').value = '0';
@@ -990,8 +1071,9 @@ function setBusy(on, msg, p) {
 function renderSlots() {
   const d = DANCES[S.dance], box = $('slots');
   box.innerHTML = '';
-  box.style.gridTemplateColumns = `repeat(${d.slots.length}, minmax(0, 1fr))`;
+  box.style.setProperty('--slots', d.slots.length);
   box.classList.toggle('many', d.slots.length > 5);
+  box.classList.toggle('long', d.slots.length > 8);
   for (const s of d.slots) {
     const el = document.createElement('div');
     // in a longer cycle no slot is always on the music's 1, so updateStage sets .one as it plays
@@ -1000,10 +1082,11 @@ function renderSlots() {
     box.appendChild(el);
   }
   $('countingText').textContent = d.counting;
-  const isSamba = S.dance.startsWith('samba');
-  document.querySelectorAll('[data-dance]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.dance === (isSamba ? 'samba' : S.dance))));
-  $('sambaTiming').hidden = !isSamba;
-  if (isSamba) $('sambaVariant').value = S.dance;
+  const group = d.group || S.dance, timings = Object.keys(DANCES).filter(id => (DANCES[id].group || id) === group);
+  document.querySelectorAll('[data-dance]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.dance === group)));
+  $('timingPick').hidden = timings.length < 2;
+  $('timing').replaceChildren(...timings.map(id => new Option(DANCES[id].timing || DANCES[id].counting, id)));
+  $('timing').value = S.dance;
   $('cycleStart').hidden = !d.cycle;
   S.shown = -2;
 }
@@ -1212,7 +1295,8 @@ function startCycleHere() {
   const n = DANCES[S.dance].cycle;
   if (!n || S.beats.length < 4) return;
   const i = heardBeat();
-  S.cycleShift = ((i - S.k) % n + n) % n;
+  // not reduced to one cycle, so your start stays on this beat if you change to a timing of another length
+  S.cycleShift = i - S.k;
   rebuildEvents();
   toast(`Got it: your basic now starts at ${fmtTime(S.beats[i] + S.offset, true)}.`);
 }
@@ -1228,12 +1312,9 @@ function changeTempo(factor) {
   toast(`Tempo is now ${(60 / S.ibi).toFixed(1)} BPM.`);
 }
 function shiftHalf(announce) {
-  const b = S.beats;
-  if (b.length < 2) return;
-  const nb = [];
-  for (let i = 0; i + 1 < b.length; i++) nb.push((b[i] + b[i + 1]) / 2);
-  S.beats = nb;
-  S.k = guessDownbeat(nb);
+  if (S.beats.length < 2) return;
+  S.beats = midpoints(S.beats);
+  S.k = guessDownbeat(S.beats);
   S.cycleShift = 0;
   afterBeatsChange();
   if (announce) toast('Beat lines moved by half a beat.');
@@ -1316,20 +1397,21 @@ async function loadFile(file, title) {
 }
 
 /* ---------- song library (needs the local server: start.bat) ---------- */
-const L = { results: [], songs: [], jobs: {}, current: null, armed: null, query: '', searchCtl: null, searchTimer: 0, disarmTimer: 0, online: false, store: null };
+const L = { results: [], songs: [], jobs: {}, current: null, armed: null, query: '', searchCtl: null, searchTimer: 0, disarmTimer: 0, online: false, store: null, tagFilter: null, tagging: null, tagDraft: '' };
 
 async function fetchAudio(file) {
   const r = await fetch('/api/audio?file=' + encodeURIComponent(file), { cache: 'no-store' });
   if (!r.ok) throw new Error(String(r.status));
   return r.blob();
 }
-// On your computer, songs live in library/ and the server lists them.
+// On your computer, and on a host with a lasting disk, songs live on the server and it lists them.
 const diskStore = {
   async list() { return (await api('/api/library')).songs; },
   blob: song => fetchAudio(song.file),
-  remove: song => api('/api/library?file=' + encodeURIComponent(song.file), { method: 'DELETE' })
+  remove: song => api('/api/library?file=' + encodeURIComponent(song.file), { method: 'DELETE' }),
+  setTags: (song, tags) => api('/api/tags', { method: 'POST', body: JSON.stringify({ file: song.file, tags }) })
 };
-// Online, the server only passes songs through, so each browser keeps its own.
+// Other online servers only pass songs through, so each browser keeps its own.
 const browserStore = {
   db: null,
   open() {
@@ -1358,6 +1440,13 @@ const browserStore = {
   add(song, blob) {
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     return this.run('readwrite', s => s.put({ ...song, blob }));
+  },
+  setTags(song, tags) {
+    return this.run('readwrite', s => {
+      const found = s.get(song.file);
+      found.onsuccess = () => s.put({ ...found.result, tags });
+      return found;
+    });
   }
 };
 const onComputer = () => location.protocol === 'file:' || /^(localhost|127\.|\[::1\]|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
@@ -1406,17 +1495,16 @@ async function initLibrary() {
   }
   if (!status || !status.ok) { $('libraryOff').hidden = !onComputer(); return; }
   L.online = !!status.online;
-  L.store = L.online ? browserStore : diskStore;
+  L.store = status.keepsSongs ? diskStore : browserStore;
   $('library').hidden = false;
-  if (L.online) {
-    $('songsTitle').textContent = 'Your songs on this device';
-    showSignIn(!status.signedIn);
-  }
+  if (L.store === browserStore) $('songsTitle').textContent = 'Your songs on this device';
+  if (L.online) showSignIn(!status.signedIn);
   if (!status.downloader) {
     $('q').disabled = true;
     $('q').placeholder = 'Search is off: run update.bat to install the downloader';
   }
-  refreshLibrary();
+  // songs on the server wait for the sign-in; songs on this device don't need one
+  if (status.signedIn || L.store === browserStore) refreshLibrary();
 }
 async function signIn(e) {
   e.preventDefault();
@@ -1425,6 +1513,7 @@ async function signIn(e) {
     await api('/api/login', { method: 'POST', body: JSON.stringify({ password: $('loginPassword').value }) });
     $('loginPassword').value = '';
     showSignIn(false);
+    refreshLibrary();
     $('q').focus();
   } catch (err) {
     $('loginError').textContent = err.message;
@@ -1436,10 +1525,87 @@ async function refreshLibrary() {
   for (const r of L.results) updateResultRow(r.id);
 }
 
+/* tags: a song can have several, and picking one shows only its songs */
+const MAX_TAGS = 20, MAX_TAG_LENGTH = 40;
+const tagsOf = s => s.tags || [];
+const allTags = () => [...new Set(L.songs.flatMap(tagsOf))].sort((a, b) => a.localeCompare(b));
+// shows the change right away, because a small online server can take a while to answer
+async function saveTags(song, tags) {
+  const before = song.tags;
+  song.tags = tags;
+  renderSongs();
+  try { await L.store.setTags(song, tags); }
+  catch (e) {
+    song.tags = before;
+    renderSongs();
+    toast(e.message);
+  }
+}
+function chipButton(label, cls, onClick, aria) {
+  const b = el('button', cls, label);
+  b.type = 'button';
+  b.setAttribute('aria-label', aria);
+  b.addEventListener('click', onClick);
+  return b;
+}
+function addTag(song, typed) {
+  const text = typed.trim().replace(/\s+/g, ' ').slice(0, MAX_TAG_LENGTH), same = t => t.toLowerCase() === text.toLowerCase();
+  L.tagging = null; L.tagDraft = '';
+  if (!text || tagsOf(song).some(same)) { renderSongs(); return; }
+  if (tagsOf(song).length >= MAX_TAGS) { renderSongs(); toast(`A song can have up to ${MAX_TAGS} tags. Remove one first.`); return; }
+  // reuse the spelling you already have, so "Bachata" and "bachata" stay one tag
+  saveTags(song, [...tagsOf(song), allTags().find(same) || text]);
+}
+function renderTagFilter() {
+  const tags = allTags(), box = $('tagFilter');
+  if (!tags.includes(L.tagFilter)) L.tagFilter = null;
+  const chip = (label, value) => {
+    const b = chipButton(label, 'chip', () => { L.tagFilter = value; renderSongs(); }, value ? `Show only songs tagged ${value}` : 'Show all your songs');
+    b.setAttribute('aria-pressed', String(L.tagFilter === value));
+    return b;
+  };
+  box.hidden = !tags.length;
+  box.replaceChildren(chip('All', null), ...tags.map(t => chip(t, t)));
+  $('tagOptions').replaceChildren(...tags.map(t => new Option(t)));
+}
+function songTagsEl(s) {
+  const box = el('div', 'song-tags');
+  for (const t of tagsOf(s)) {
+    const chip = el('span', 'chip song-tag', t);
+    chip.append(chipButton('×', '', () => saveTags(s, tagsOf(s).filter(v => v !== t)), `Remove the tag ${t} from ${s.title}`));
+    box.append(chip);
+  }
+  if (L.tagging !== s.file) {
+    box.append(chipButton('+ Tag', 'chip', () => {
+      L.tagging = s.file; L.tagDraft = '';
+      renderSongs();
+      $('songs').querySelector('.tag-form input').focus();
+    }, `Add a tag to ${s.title}`));
+    return box;
+  }
+  const form = el('form', 'tag-form'), input = el('input');
+  input.setAttribute('list', 'tagOptions');
+  input.setAttribute('aria-label', `New tag for ${s.title}`);
+  input.placeholder = 'Monday class';
+  input.maxLength = MAX_TAG_LENGTH;
+  input.value = L.tagDraft;
+  input.addEventListener('input', () => { L.tagDraft = input.value; });
+  const close = () => { L.tagging = null; L.tagDraft = ''; renderSongs(); };
+  input.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  form.addEventListener('submit', e => { e.preventDefault(); addTag(s, input.value); });
+  form.append(input, el('button', 'btn sm primary', 'Add'), button('×', 'ghost', close, 'Close without adding a tag'));
+  box.append(form);
+  return box;
+}
+
 function renderSongs() {
   // a pasted link says nothing about song titles, so it doesn't filter the list
   const ul = $('songs'), q = /^https?:|youtu\.?be/i.test(L.query) ? '' : L.query.toLowerCase();
-  const list = q ? L.songs.filter(s => `${s.title} ${s.channel || ''}`.toLowerCase().includes(q)) : L.songs;
+  const typing = !!document.activeElement?.closest('.tag-form'), scrolled = ul.scrollTop;
+  renderTagFilter();
+  const list = L.songs
+    .filter(s => !L.tagFilter || tagsOf(s).includes(L.tagFilter))
+    .filter(s => `${s.title} ${s.channel || ''} ${tagsOf(s).join(' ')}`.toLowerCase().includes(q));
   $('songCount').textContent = L.songs.length ? `(${L.songs.length})` : '';
   ul.replaceChildren();
   if (!list.length) { ul.append(el('li', 'empty', L.songs.length ? 'None of your songs match.' : 'Songs you download appear here.')); return; }
@@ -1448,7 +1614,7 @@ function renderSongs() {
     const li = el('li', 'row' + (s.youtube_id ? '' : ' no-thumb') + (current ? ' current' : ''));
     if (s.youtube_id) li.append(thumb(s.youtube_id));
     const meta = el('div', 'meta');
-    meta.append(el('span', 'title', s.title), el('span', 'sub', subline(s) || s.file));
+    meta.append(el('span', 'title', s.title), el('span', 'sub', subline(s) || s.file), songTagsEl(s));
     const act = el('div', 'actions');
     act.append(
       button(current ? 'Loaded' : 'Load', current ? '' : 'primary', () => loadFromLibrary(s)),
@@ -1456,6 +1622,8 @@ function renderSongs() {
     li.append(meta, act);
     ul.append(li);
   }
+  ul.scrollTop = scrolled;
+  if (typing && ul.querySelector('.tag-form input')) ul.querySelector('.tag-form input').focus();
 }
 
 function renderResults(list, emptyText) {
@@ -1541,7 +1709,7 @@ async function download(id) {
     updateResultRow(id);
     if (job.state === 'done') {
       let blob = null, note = `Saved "${job.song.title}" to your songs.`;
-      if (L.online) {
+      if (L.store === browserStore) {
         try {
           blob = await fetchAudio(job.song.file);
           await browserStore.add(job.song, blob);
@@ -1618,9 +1786,10 @@ document.addEventListener('drop', e => {
   const f = e.dataTransfer && e.dataTransfer.files[0];
   if (f) loadFile(f);
 });
-const setDance = id => { S.dance = id; store.set('dance', id); renderSlots(); rebuildEvents(); updateSongInfo(); };
-document.querySelectorAll('[data-dance]').forEach(b => b.addEventListener('click', () => setDance(b.dataset.dance === 'samba' ? $('sambaVariant').value : b.dataset.dance)));
-$('sambaVariant').addEventListener('change', e => setDance(e.target.value));
+const timingChosen = { [DANCES[S.dance].group || S.dance]: S.dance }; // so going back to a dance keeps the timing you picked for it
+const setDance = id => { S.dance = id; timingChosen[DANCES[id].group || id] = id; store.set('dance', id); renderSlots(); rebuildEvents(); updateSongInfo(); };
+document.querySelectorAll('[data-dance]').forEach(b => b.addEventListener('click', () => setDance(timingChosen[b.dataset.dance] || b.dataset.dance)));
+$('timing').addEventListener('change', e => setDance(e.target.value));
 $('cycleStart').addEventListener('click', startCycleHere);
 $('play').addEventListener('click', togglePlay);
 $('prevBar').addEventListener('click', () => seekBar(-1));

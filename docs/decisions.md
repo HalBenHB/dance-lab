@@ -22,6 +22,13 @@ Each decision lists what was done, why, what else was considered, and what chang
 - **Why:** it's small, has no dependencies, and is about 200 lines anyone can read and tune. The 110 BPM center covers rumba (around 100), samba (around 100) and cha-cha (around 124), and avoids double or half tempo for them.
 - **Do not change because:** the constants were checked against the example groove: 124.0 BPM, and every downbeat within 8 ms. After changing any constant, run the checks in [development.md](development.md).
 
+## Move the beats half a beat when the bass says so
+
+- **What:** `bassBetweenBeats` moves the whole grid half a beat when the bass hits and the bass note changes both fall clearly between the detected beats (each below 0.8 of the halfway value).
+- **Why:** the owner tested "Hit the Road Jack" and the count was wrong. The handclaps sit between the bass notes and are 3 times stronger, so the beat tracker locked onto them. With the grid half a beat off, no choice of the 1 can be right. Moved, the existing guess puts the 1 on the first note of the bass line in every bar.
+- **Alternatives considered:** teaching the tracker to ignore claps, which risks every song's tempo; leaving it to **Shift half a beat**, which needs the dancer to know what went wrong.
+- **Do not change because:** requiring both measures is what stops it firing on a syncopated bass, which is common in Latin music. The other three real songs score 0.86 or higher on both measures and stay put. Loosen the 0.8 only after testing real songs.
+
 ## The downbeat bands start at 200 Hz
 
 - **What:** `spectralFeatures` uses `lo = 200` for the 24 harmony bands.
@@ -63,8 +70,8 @@ Each decision lists what was done, why, what else was considered, and what chang
 
 ## A longer pattern is a cycle on top of the grid
 
-- **What:** a dance can set `cycle` (Jive: 6). `rebuildEvents` then places its slots by `placeInCycle`, while bars, loops, bar seeking and the timeline's numbers stay on the 4-beat grid.
-- **Why:** the Jive basic is 6 beats. Bars are the music's and the cycle is the dancer's, and seeing the two side by side is the lesson.
+- **What:** a dance can set `cycle` (Jive: 6, Bachata: 8). `rebuildEvents` then places its slots by `placeInCycle`, while bars, loops, bar seeking and the timeline's numbers stay on the 4-beat grid.
+- **Why:** the Jive basic is 6 beats. Bars are the music's and the cycle is the dancer's, and seeing the two side by side is the lesson. The owner's Bachata count runs through 8 for the same reason: it spans two bars.
 - **Alternatives considered:** one 4-beat group of the rhythm (1, 2, 3 a 4), which is simpler but drops the second chassé and teaches the wrong count. Also a 3-bar pattern of 12 beats, which would need all the same code and list every slot twice.
 - **Do not change because:** moving the cycle into `countAt` or `barAt` would break bar numbers, loops and the 8-bar dots.
 
@@ -74,6 +81,19 @@ Each decision lists what was done, why, what else was considered, and what chang
 - **Why:** the owner asked for it, on phones too. Keeping the song under the finger is what dragging a waveform feels like.
 - **Alternatives considered:** seeking on `pointerup`, which is simpler, but `click` is what phones reliably accept as permission to start audio. Playing sound during the drag, which would mean a burst of `<audio>` seeks.
 - **Do not change because:** see the `touch-action` row under "What not to change".
+
+## The owner's counts are the defaults
+
+- **What:** Bachata opens on 1 2 3 4 5 6 7 8 and Jive on 1 2 3 a 4 5 a 6. The older counts, and Jive with 7 8, are under **Timing**.
+- **Why:** this is how the owner and their studio count. The steps and timing are the same; only the numbers said out loud change. In Jive, the numbers running on to 5 and 6 also make the two chassés easy to tell apart.
+- **How it's built:** the new counts took over the keys `bachata` and `jive`, so a browser that had saved either one opens on the new default.
+- **Do not change because:** making the older count the main entry again would change what those saved keys mean.
+
+## Tags, not playlists
+
+- **What:** a song can have several tags, and picking one shows only its songs. There are no ordered lists, and nothing plays one song after another.
+- **Why:** the owner asked for playlists or tags. Dancers practice one song at a time, and one song often belongs in several groups, such as "Bachata" and "Monday class", which tags handle with far less to build.
+- **Alternatives considered:** ordered playlists, which need their own screen for reordering, and playing the next song automatically. Add them if the owner wants a running order.
 
 ## The server is optional, and the page detects it
 
@@ -93,12 +113,12 @@ Each decision lists what was done, why, what else was considered, and what chang
 - **Why:** the owner chose this location. Ignoring it keeps copyrighted audio out of a public repo.
 - **Do not change because:** committing songs would publish copyrighted material on GitHub.
 
-## The online server keeps no songs
+## The online server keeps no songs, unless it's given a lasting disk
 
-- **What:** online, `server.py` downloads a song to a temp folder, sends it to the browser, and deletes it. Each browser keeps its own songs in IndexedDB.
-- **Why:** free hosting has a temporary disk, so server storage would mean paying for a disk. This also keeps copyrighted files off a rented server, and makes it possible to learn whether YouTube blocks the host before paying for anything.
-- **Alternatives considered:** a paid persistent disk or cloud storage. That would share one library across devices, at a monthly cost.
-- **Do not change because:** storing songs on the server raises the cost and the copyright exposure. Sharing songs across devices would need a deliberate decision on both.
+- **What:** online, `server.py` downloads a song to a temp folder, sends it to the browser, and deletes it. Each browser keeps its own songs in IndexedDB. If `DANCE_LAB_DATA` is set, songs and tags stay in that folder instead, and every device shares them.
+- **Why:** free hosting has a temporary disk, so server storage would mean paying for a disk. This also keeps copyrighted files off a rented server, and makes it possible to learn whether YouTube blocks the host before paying for anything. The owner has since asked to keep songs on the host so they can be re-used, so the setting exists, but it stays off until the owner chooses where the songs should live.
+- **Alternatives considered:** a free cloud storage bucket, which would work on the free plan but needs an account, keys and more code in `server.py`.
+- **Do not change because:** keeping songs without a lasting disk would lose them at the next sleep, and setting a disk in `render.yaml` would break the free plan. Turning this on is a decision about cost and copyright for the owner to make.
 
 ## Online mode needs a password, and the image refuses to run without one
 
@@ -173,6 +193,8 @@ These look odd but are intentional:
 | Thing | Where | Why it's right |
 |---|---|---|
 | `lo = 200` for bands | `spectralFeatures` | Stops bass lines from faking chord changes (see above) |
+| `S.cycleShift = i - S.k`, not reduced to one cycle | `startCycleHere` | Dances now have cycles of different lengths. Reducing it would move your start when you change timing |
+| `DANCE_LAB_DATA` refused inside the Dance Lab folder | `main()` in `server.py` | Everything in that folder is served as pages without the password |
 | `- 0.06 * player.rate` | `heardBeat` | Reaction time: people press "1" slightly after they hear it |
 | `touch-action: pan-y` on `#detail` | `<style>` | A sideways drag moves the song, and an up-and-down one still scrolls the page. With `none`, a phone user whose finger lands on this big canvas can't scroll. The browser sends `pointercancel` when it takes over, so `endScrub` handles that too |
 | `scrubbed` reset in `pointerdown` | `#detail` handlers | Desktop browsers send a `click` after a drag and phones don't, so it can't be reset in the `click` handler: the next real tap would be swallowed |

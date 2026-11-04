@@ -10,7 +10,8 @@ This page mainly describes the version on your computer. [online.md](online.md) 
 
 - **Search bar** (`#q`). Typing searches YouTube after a 450 ms pause (at least 2 characters). **Enter** searches immediately. A pasted link (`watch?v=`, `youtu.be/`, `/shorts/`, `/embed/`, `/live/`) shows that one video. While a search runs, old results are dimmed.
 - **YouTube list** (`#results`): thumbnail, title, channel and length, with **Download**. While downloading, the row fills with pink and shows "Saving N%". Videos already in the library show **Saved** and **Load**.
-- **Your songs** (`#songs`): everything in `library/`, newest first. Typing in the search bar filters this list by title and channel, unless the text is a link. **Load** analyzes the song; the loaded one is highlighted and shows **Loaded**. **×** turns into **Delete?** for 3 seconds, and a second click deletes.
+- **Your songs** (`#songs`): everything in `library/`, newest first. Typing in the search bar filters this list by title, channel and tag, unless the text is a link. **Load** analyzes the song; the loaded one is highlighted and shows **Loaded**. **×** turns into **Delete?** for 3 seconds, and a second click deletes.
+- **Tags:** **+ Tag** on a song opens a box that suggests the tags you already have. A song can have up to 20, each up to 40 characters, and **×** on a tag removes it. Tags that differ only by capitals count as one, and a new tag takes the spelling you already use. The row above the list (`#tagFilter`) shows only the songs with the tag you pick, so a tag also works as a simple playlist.
 - **After a download** finishes, the song is loaded right away and the page scrolls to the count.
 
 ## Files on disk
@@ -34,10 +35,13 @@ library/
       "channel": "jawed",
       "duration": 19,
       "youtube_id": "jNQXAC9IVRw",
-      "added": "2026-11-03T18:10:42+00:00"
+      "added": "2026-11-03T18:10:42+00:00",
+      "tags": ["Monday class"]
     }
   ]
   ```
+
+  `tags` is left out until a song has had one.
 
 - Audio files with no entry (`.m4a .mp4 .webm .opus .ogg .mp3 .wav .flac`) get one on the fly: the title is the file name, and `youtube_id` is `null`. Entries whose file is missing are dropped.
 
@@ -47,18 +51,19 @@ The server listens on `http://localhost:8766` (`--port` changes this). All respo
 
 | Method | Path | Request | Response |
 |---|---|---|---|
-| GET | `/api/status` | — | `{"ok": true, "online": bool, "signedIn": bool, "downloader": bool}`, plus `"library": "C:\\…\\library"` when not online, and `"commit"` on Render. Never needs a sign-in |
+| GET | `/api/status` | — | `{"ok": true, "online": bool, "signedIn": bool, "downloader": bool, "keepsSongs": bool}`, plus `"library": "C:\\…\\library"` when not online, and `"commit"` on Render. `keepsSongs` says the server stores songs, so the page should use `diskStore`. Never needs a sign-in |
 | POST | `/api/login` | `{"password": "…"}` and header `X-Dance-Lab: 1` | `{"ok": true}` and a session cookie. 401 for a wrong password, 429 after too many. Online mode only |
 | GET | `/api/search?q=…` | `q`: words or a YouTube link | `{"results": [{"id", "title", "channel", "duration"}]}`. `duration` (seconds) is `null` for links. Errors: 502 if the search fails, 503 if there's no downloader |
 | POST | `/api/download` | `{"id": "<11-char video id>"}` and header `X-Dance-Lab: 1` | 202 with a job: `{"id", "state", "percent", "error", "song"}` |
 | GET | `/api/jobs?id=…` | — | The job. `state` is `queued`, `downloading`, `done` or `error`; on `done`, `song` is the new library entry |
 | GET | `/api/library` | — | `{"songs": [ …entries as in library.json… ]}` |
 | GET | `/api/audio?file=…` | `file`: name as in the library | The audio bytes, with the right `Content-Type`. No range requests (the page downloads the whole file into a Blob) |
+| POST | `/api/tags` | `{"file": "<name as in the library>", "tags": ["…"]}` and header `X-Dance-Lab: 1` | `{"tags": […]}` as saved: the song's whole list, tidied. 404 if there's no such song |
 | DELETE | `/api/library?file=…` | Header `X-Dance-Lab: 1` | `{"ok": true}` |
 
 Starting a download that is already running returns the existing job instead of starting another. At most two downloads run at once; others wait as `queued`.
 
-In online mode, every path except `/api/status` and `/api/login` returns 401 without a sign-in. `/api/audio` deletes the file after sending it, so it works only once per download.
+In online mode, every path except `/api/status` and `/api/login` returns 401 without a sign-in. Unless `DANCE_LAB_DATA` is set, `/api/audio` deletes the file after sending it, so it works only once per download.
 
 ## How the server talks to YouTube
 
@@ -73,7 +78,7 @@ In online mode, every path except `/api/status` and `/api/login` returns 401 wit
 On your computer, the server is for one person. It is still careful about two things (online mode adds a password; see [online.md](online.md)):
 
 1. **Other websites.** Any page open in the same browser could send requests to `localhost:8766`.
-   - `POST` and `DELETE` require an `X-Dance-Lab: 1` header. A cross-site page can't send a custom header without a CORS preflight, and the server never answers preflights, so it can't download or delete.
+   - `POST` and `DELETE` require an `X-Dance-Lab: 1` header. A cross-site page can't send a custom header without a CORS preflight, and the server never answers preflights, so it can't download, delete or change tags.
    - Reads (search, library) have no CORS headers, so other sites can't read the responses.
 2. **File access.**
    - `/api/audio` and `DELETE` use only the base name of `file` (`Path(name).name`) and only accept audio extensions, so `../server.py` returns 404.
