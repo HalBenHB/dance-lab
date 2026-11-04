@@ -18,6 +18,28 @@ Newest first. Each entry says what changed and why. Anything under **Removed** m
 
 - YouTube blocks Render's address (HTTP 429 and 403), so try cookies from a spare account, then a residential proxy.
 
+## 2026-11-04: Jive, Bachata and a draggable timeline
+
+**Added**
+
+- Bachata: 1, 2, 3, tap. The tap clicks but keeps the weight, so it's a hollow ring. Its tempo (28–32 MPM) comes from IDO rules, because no official WDSF figure was found.
+- Jive: 1, 2, 3 a 4, 3 a 4. The basic takes 6 beats over 4-beat bars, so dances can now set a `cycle` length. See [dances.md](dances.md).
+- **Start my basic here** (`#cycleStart`): lines the cycle up with where the dancer starts. Shown only for dances with a `cycle`.
+- A 3-bar loop, the only length that repeats the Jive basic without a break.
+- Timeline: a tap plays from that point. A sideways drag on the close-up moves the song with the pointer, forward or back, with mouse or touch. The owner asked for this to work on phones too.
+
+**Changed**
+
+- Pink and the accent click now follow the music's 1, not the slot's label or place. Nothing changes for 4-beat dances. In Jive, a label of 1 can fall on the music's 3.
+- The tempo-fit sentence suggests **Double tempo** when a song reads about half of the chosen dance's range. A synthesized jive groove at 172 BPM read as 86.
+- `#detail` uses `touch-action: pan-y`, so a page can still scroll from it on a phone.
+- "How the counts work" has six cards in a 3-column grid. The `.grid.four` styles are gone.
+
+**Direction**
+
+- Try Jive and Bachata on real songs, and the timeline on a real phone.
+- Add Paso Doble.
+
 ## 2026-11-04: Online mode
 
 **Added**

@@ -26,7 +26,7 @@ Then open `http://localhost:8767/wheres-the-one/`. It uses a temp folder and Ind
 - **Downbeat guess** (`guessDownbeat`). It's the least reliable part, and small weight changes flip songs between beat 1 and beat 3. Test any change against the example groove and at least one real song.
 - **Timing between audio and display.** The display combines the `<audio>` clock (`player.time()`), the sync nudge (`S.offset`) and the click scheduling look-ahead (0.15 s times speed). A change to one of them shows up as early or late counts.
 - **Song-load races.** `loadAudio` awaits analysis and then `player.load`. `loadToken` drops outdated loads. Any new `await` in that path must check the token afterwards.
-- **`% 4` everywhere.** `countAt`, `barAt`, loops, bar seeking and the overview ticks all assume 4-beat groups. Changing the group size touches all of them.
+- **`% 4` everywhere.** `countAt`, `barAt`, loops, bar seeking and the overview ticks all assume 4-beat groups. Changing the group size touches all of them. A dance's `cycle` only changes where its slots go.
 - **yt-dlp and YouTube.** These break from the outside. Before debugging `server.py`, run `update.bat`, and look at the server console, which prints the raw yt-dlp error.
 - **Download jobs live in memory.** Restarting the server forgets running jobs. The page then shows an error for them, and the file may be half-written in `library/`. yt-dlp leaves `.part` files, which the library ignores.
 - **Threading.** `jobs` and `library.json` writes are protected by `lock`. Keep every write to `library.json` inside `with lock:`.
@@ -99,8 +99,10 @@ For an end-to-end download test, use YouTube's first video, "Me at the zoo" (`ht
 - **Docker isn't installed on the development machine,** so Render's builds are the only test of the image. A `Download failed` line in Render's logs now includes yt-dlp's warnings.
 - **Online mode on a real phone,** including how long iPhones keep songs in IndexedDB.
 - **Remember fixes per song.** Where the 1 is, the tempo and the nudge are lost on reload. `library.json` could store them per file.
-- **Patterns longer than 4 beats.** The Jive basic (6 counts) and many figures span 1½ or 2 bars. Slots would need a cycle length and a phrase offset.
-- **Paso Doble and Jive** aren't in the counter yet. Jive's tempo is likely detected at half speed.
+- **Paso Doble** isn't in the counter yet.
+- **Jive and Bachata on real songs.** So far they've only been checked on synthesized grooves. How often real jive reads at half tempo, and how well the 1 is found, isn't known.
+- **Timeline dragging on a real phone.** Touch was tested with simulated touch events and the phone-width view, not a real iPhone or Android. Check that a tap starts audio, that a sideways drag moves the song, and that an up-and-down swipe scrolls the page.
+- **Each dance has one pattern.** Jive has only the basic, though many figures in every dance run on other counts. Each new pattern would be a new `DANCES` entry, like the Samba timings.
 - **No automated tests.** The example groove could become a headless test (for example Node plus an `OfflineAudioContext` polyfill), but nothing runs today.
 - **Untested without ffmpeg.** Every download test so far had ffmpeg installed.
 - **Phones talking to the server.** `--lan` was written but hasn't been tested on a real phone.

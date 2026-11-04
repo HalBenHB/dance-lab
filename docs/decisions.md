@@ -51,14 +51,29 @@ Each decision lists what was done, why, what else was considered, and what chang
 
 - **What:** `--one` colors the 1 in the big count, slot boxes, timeline lines, 8-bar ticks and overview. It's also used for focus rings and loop shading, which never sit next to counts.
 - **Why:** the tool's whole job is "where's the one". Users learn "pink = one" in seconds.
-- **Do not change because:** reusing pink for other counts or as a general accent weakens the main signal.
+- **Pink means the music's 1.** In Jive the dancer's count drifts across the bars, so the stage shows a pink 3 when a chassé lands on the music's 1, and a plain 1 when the rock step lands on the music's 3.
+- **Do not change because:** reusing pink for other counts or as a general accent weakens the main signal. Pinking the dancer's 1 in Jive would flash pink on the music's 3 every other basic.
 
 ## Every dance uses a 4-beat grid
 
 - **What:** beats are always grouped in fours (`countAt`, `barAt`), including 2/4 Samba, which is shown as "1 a 2, 3 a 4". Tempo in bars per minute uses each dance's `barBeats`.
 - **Why:** one grid keeps detection, bar numbers, loops and 8-bar groups simple. Dancers often count samba choreography in fours anyway.
 - **Alternatives considered:** a per-dance bar length, which touches detection, the loop maths and the overview ticks.
-- **Do not change because:** many functions assume `% 4`. See the open question in [development.md](development.md).
+- **Do not change because:** many functions assume `% 4`.
+
+## A longer pattern is a cycle on top of the grid
+
+- **What:** a dance can set `cycle` (Jive: 6). `rebuildEvents` then places its slots by `placeInCycle`, while bars, loops, bar seeking and the timeline's numbers stay on the 4-beat grid.
+- **Why:** the Jive basic is 6 beats. Bars are the music's and the cycle is the dancer's, and seeing the two side by side is the lesson.
+- **Alternatives considered:** one 4-beat group of the rhythm (1, 2, 3 a 4), which is simpler but drops the second chassé and teaches the wrong count. Also a 3-bar pattern of 12 beats, which would need all the same code and list every slot twice.
+- **Do not change because:** moving the cycle into `countAt` or `barAt` would break bar numbers, loops and the 8-bar dots.
+
+## Tap plays, drag moves the song
+
+- **What:** on the close-up timeline, a tap seeks and starts playing. A sideways drag of 8 px or more carries the song with the pointer: left goes forward, right goes back. Sound stops during the drag and resumes on release if it was playing. The overview also plays on a tap, but its drag still jumps to the pointer.
+- **Why:** the owner asked for it, on phones too. Keeping the song under the finger is what dragging a waveform feels like.
+- **Alternatives considered:** seeking on `pointerup`, which is simpler, but `click` is what phones reliably accept as permission to start audio. Playing sound during the drag, which would mean a burst of `<audio>` seeks.
+- **Do not change because:** see the `touch-action` row under "What not to change".
 
 ## The server is optional, and the page detects it
 
@@ -139,7 +154,9 @@ These look odd but are intentional:
 | Thing | Where | Why it's right |
 |---|---|---|
 | `lo = 200` for bands | `spectralFeatures` | Stops bass lines from faking chord changes (see above) |
-| `- 0.06 * player.rate` | `setOne` | Reaction time: people press "1" slightly after they hear it |
+| `- 0.06 * player.rate` | `heardBeat` | Reaction time: people press "1" slightly after they hear it |
+| `touch-action: pan-y` on `#detail` | `<style>` | A sideways drag moves the song, and an up-and-down one still scrolls the page. With `none`, a phone user whose finger lands on this big canvas can't scroll. The browser sends `pointercancel` when it takes over, so `endScrub` handles that too |
+| `scrubbed` reset in `pointerdown` | `#detail` handlers | Desktop browsers send a `click` after a drag and phones don't, so it can't be reset in the `click` handler: the next real tap would be swallowed |
 | Loop starts 0.03 s before the 1 | `setLoop` | So the 1 is heard in full every time the loop restarts |
 | `v < lastOut && lastOut - v < 0.08` | `player.time()` | `<audio>` time updates in steps. Without this, the count flickers back and forth across a beat |
 | `setInterval(…, 40)` next to `requestAnimationFrame` | after `frame()` | Animation frames stop in background tabs, and the click track must not |
