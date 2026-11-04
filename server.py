@@ -60,6 +60,7 @@ LINK_ID = re.compile(r"(?:[?&]v=|youtu\.be/|/shorts/|/embed/|/live/)([\w-]{11})"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 # A blocked server may only be offered combined video files such as format 18, so accept them too.
 AUDIO_FORMAT = "bestaudio[ext=m4a]/bestaudio/best"
+RETRY_WAITS = (10, 30)  # seconds; YouTube's rate limit on shared hosting addresses comes and goes
 BLOCKED = re.compile(r"Sign in to confirm|not a bot|IP is likely being blocked|HTTP Error (403|429)")
 
 lock = threading.Lock()
@@ -205,6 +206,21 @@ def lookup_link(video_id: str) -> dict:
     return {"id": video_id, "title": data.get("title") or "", "channel": data.get("author_name") or "", "duration": None}
 
 
+def fetch_audio(video_id: str, opts: dict, log: YdlLog) -> dict:
+    import yt_dlp
+    for wait in (*RETRY_WAITS, None):
+        del log.warnings[:]
+        try:
+            with download_slots, yt_dlp.YoutubeDL(opts) as ydl:
+                return ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=True)
+        except Exception as err:
+            if wait is None or "HTTP Error 429" not in f"{err} {' '.join(log.warnings)}":
+                raise
+        print(f"YouTube is rate-limiting {video_id}; trying again in {wait} seconds")
+        time.sleep(wait)
+    raise AssertionError("unreachable")
+
+
 def start_download(video_id: str) -> dict:
     with lock:
         job = jobs.get(video_id)
@@ -233,12 +249,9 @@ def run_download(job: dict) -> None:
         **audio_options(),
     )
     try:
-        with download_slots:
-            import yt_dlp
-            if ONLINE:
-                remove_old_temp_songs()
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(f"https://www.youtube.com/watch?v={job['id']}", download=True)
+        if ONLINE:
+            remove_old_temp_songs()
+        info = fetch_audio(job["id"], opts, log)
         path = Path(info["requested_downloads"][0]["filepath"])
         song = {"file": path.name, "title": info.get("title") or path.stem,
                 "channel": info.get("channel") or info.get("uploader") or "",
@@ -268,7 +281,7 @@ def run_download(job: dict) -> None:
 
 # TEMPORARY: lets us see from outside how YouTube treats this server. Remove once online downloads work.
 youtube_check: dict = {"state": "not run"}
-CHECK_VIDEOS = {"clip": "jNQXAC9IVRw", "song": "xeMOO5EudYs"}
+CHECK_VIDEOS = {"song1": "xeMOO5EudYs", "song2": "zNBj4EV_hAo"}
 
 
 def check_summary(text: str) -> str:
@@ -279,26 +292,15 @@ def check_summary(text: str) -> str:
 
 
 def check_youtube() -> None:
-    import urllib.request
-    page = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
-    youtube_check.update(state="running", page=None, clients={})
-    try:
-        request = urllib.request.Request(page, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 Safari/537.36"})
-        with urlopen(request, timeout=20) as r:
-            html = r.read().decode("utf-8", "replace")
-            youtube_check["page"] = {"status": r.status, "bytes": len(html), "playerData": "ytInitialPlayerResponse" in html,
-                                     "botCheck": "not a bot" in html, "consent": "consent.youtube.com" in r.geturl()}
-    except Exception as err:
-        youtube_check["page"] = check_summary(str(err))
-    import yt_dlp
+    youtube_check.update(state="running", clients={})
+    importlib.import_module("yt_dlp")
     folder = Path(tempfile.mkdtemp())
     for name, video_id in CHECK_VIDEOS.items():
         log = YdlLog()
         opts = ydl_options(outtmpl=str(folder / "%(id)s.%(ext)s"), logger=log, **audio_options())
         started = time.time()
         try:
-            with download_slots, yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=True)
+            info = fetch_audio(video_id, opts, log)
             path = Path(info["requested_downloads"][0]["filepath"])
             youtube_check["clients"][name] = f"OK: format {info.get('format_id')}, {path.suffix}, {path.stat().st_size} bytes, {time.time() - started:.0f}s"
             path.unlink(missing_ok=True)
