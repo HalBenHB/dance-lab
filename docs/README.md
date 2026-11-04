@@ -1,0 +1,30 @@
+# Dance Lab documentation
+
+This folder is the detailed documentation for Dance Lab. The [main README](../README.md) is the short, human-friendly version. These files explain how things work, why they were built this way, and what to be careful about when changing them.
+
+They are written for developers and for AI assistants working on the code. If you are an AI assistant, read [architecture.md](architecture.md), [decisions.md](decisions.md) and [development.md](development.md) before editing anything.
+
+## Project snapshot
+
+- **Purpose:** practice tools for Latin dancers. The main tool, Where's the One, finds the beats and the 1 of each bar in any song and shows the dance steps on each count.
+- **Runtime:** static HTML, CSS and JavaScript pages that run in any modern browser. An optional local server for the song library uses Python 3.10+ (developed on 3.13) and [yt-dlp](https://github.com/yt-dlp/yt-dlp).
+- **Architecture:** each tool is one self-contained HTML file with no build step and no framework. The server is one Python file using only the standard library plus yt-dlp.
+- **Maturity:** a working personal tool, used by one dancer and their studio. No automated tests.
+- **Key constraints:**
+  - Every page must keep working as a plain static file on GitHub Pages, without the server.
+  - Songs never leave the user's computer.
+  - No build tools.
+
+## Files in this folder
+
+| File | What it covers |
+|---|---|
+| [setup.md](setup.md) | Installing, running, updating, GitHub Pages, phones, troubleshooting |
+| [architecture.md](architecture.md) | How the pieces fit: file map, page structure, state, server, dependencies |
+| [beat-detection.md](beat-detection.md) | How Where's the One finds the tempo, the beats and the 1, step by step |
+| [dances.md](dances.md) | How step patterns are described, the built-in dances, and how to add one |
+| [song-library.md](song-library.md) | YouTube search, downloads, the library folder, and the server API reference |
+| [decisions.md](decisions.md) | Design decisions with their reasons, and what not to change |
+| [development.md](development.md) | Fragile areas, how to test changes, checklists, open questions |
+| [glossary.md](glossary.md) | The project's own terms (count, the 1, slot, MPM…) and terms to avoid |
+| [changelog.md](changelog.md) | What changed, when and why, and where the project is heading |
