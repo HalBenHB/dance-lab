@@ -230,6 +230,7 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
 .saved-tag { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; color: var(--muted); }
 .empty { color: var(--muted); font-size: .9rem; padding: 10px 8px; }
 .rows.stale { opacity: .45; }
+.row-error { font-size: .8rem; font-weight: 500; line-height: 1.35; margin-top: 2px; }
 .library-off code { font-family: var(--font-mono); font-size: .85em; }
 
 @media (max-width: 1000px) { .grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -1428,6 +1429,11 @@ function updateResultRow(id) {
   const busy = job && (job.state === 'queued' || job.state === 'downloading');
   li.classList.toggle('downloading', !!busy);
   li.style.setProperty('--p', (busy ? job.percent || 0 : 0) + '%');
+  const failed = job && job.state === 'error' && job.error;
+  let note = li.querySelector('.row-error');
+  if (failed && !note) li.querySelector('.meta').append(note = el('span', 'row-error'));
+  if (failed) note.textContent = job.error;
+  else if (note) note.remove();
   if (busy) box.append(el('span', 'progress-pill', job.state === 'queued' ? 'Starting…' : `Saving ${job.percent || 0}%`));
   else if (saved) box.append(el('span', 'saved-tag', 'Saved'), button('Load', '', () => loadFromLibrary(saved)));
   else box.append(button(job && job.state === 'error' ? 'Try again' : 'Download', 'primary', () => download(id)));

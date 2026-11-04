@@ -58,6 +58,7 @@ PRIVATE_DIRS = {".git", ".venv", ".claude", "__pycache__", "library"}
 VIDEO_ID = re.compile(r"^[\w-]{11}$")
 LINK_ID = re.compile(r"(?:[?&]v=|youtu\.be/|/shorts/|/embed/|/live/)([\w-]{11})")
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
+BLOCKED = re.compile(r"Sign in to confirm|not a bot|IP is likely being blocked|HTTP Error (403|429)")
 
 lock = threading.Lock()
 download_slots = threading.Semaphore(2)  # small online servers run out of memory with more
@@ -65,6 +66,22 @@ jobs: dict[str, dict] = {}
 search_cache: dict[str, tuple[float, list]] = {}
 failed_logins: list[float] = []
 SESSION_KEY = hashlib.pbkdf2_hmac("sha256", PASSWORD.encode(), b"dance-lab-session", 200_000) if ONLINE else b""
+
+
+class YdlLog:
+    """Keeps yt-dlp's warnings, which usually hold the real reason behind a failure."""
+
+    def __init__(self):
+        self.warnings: list[str] = []
+
+    def debug(self, msg):
+        pass
+
+    def error(self, msg):
+        pass
+
+    def warning(self, msg):
+        self.warnings.append(ANSI.sub("", str(msg)))
 
 
 def ydl_options(**extra) -> dict:
@@ -198,11 +215,13 @@ def run_download(job: dict) -> None:
                 job["percent"] = min(99, round(100 * d.get("downloaded_bytes", 0) / total))
 
     LIBRARY.mkdir(exist_ok=True)
+    log = YdlLog()
     opts = ydl_options(
         format="bestaudio[ext=m4a]/bestaudio",
         outtmpl=str(LIBRARY / "%(title).90B [%(id)s].%(ext)s"),
         windowsfilenames=True,
         progress_hooks=[progress],
+        logger=log,
     )
     try:
         with download_slots:
@@ -221,7 +240,8 @@ def run_download(job: dict) -> None:
         print(f"Saved: {path.name}")
     except Exception as err:  # yt-dlp raises many error types; the page shows the message
         text = clean_error(err)
-        if "Sign in to confirm" in text:
+        details = " ".join(log.warnings)
+        if BLOCKED.search(text) or BLOCKED.search(details):
             message = ("YouTube is blocking this online server. It needs a proxy or cookies: see docs/online.md."
                        if ONLINE else "YouTube wants to check you're not a bot. Wait a few minutes and try again.")
         elif "Private video" in text or "unavailable" in text.lower():
@@ -231,6 +251,52 @@ def run_download(job: dict) -> None:
             message = f"The download failed ({text[:160]}). If this keeps happening, {fix}."
         job.update(state="error", error=message)
         print(f"Download failed for {job['id']}: {text}")
+        for warning in log.warnings:
+            print(f"  yt-dlp warning: {warning}")
+
+
+# TEMPORARY: lets us see from outside how YouTube treats this server. Remove once online downloads work.
+youtube_check: dict = {"state": "not run"}
+CHECK_CLIENTS = (None, "android_vr", "tv", "tv_simply", "web_safari", "web_embedded", "mweb", "ios", "android")
+
+
+def check_summary(text: str) -> str:
+    text = re.sub(r"https?://\S+", "<url>", ANSI.sub("", text))
+    found = re.search(r"HTTP Error \d+[^'\"\n)]*|Sign in to confirm[^.]*|IP is likely being blocked|Requested format is not available|"
+                      r"Failed to extract any player response|Network is unreachable|timed out", text)
+    return found.group(0) if found else text[:140]
+
+
+def check_youtube() -> None:
+    import urllib.request
+    video = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+    youtube_check.update(state="running", page=None, clients={})
+    try:
+        request = urllib.request.Request(video, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 Safari/537.36"})
+        with urlopen(request, timeout=20) as r:
+            html = r.read().decode("utf-8", "replace")
+            youtube_check["page"] = {"status": r.status, "bytes": len(html), "playerData": "ytInitialPlayerResponse" in html,
+                                     "botCheck": "not a bot" in html, "consent": "consent.youtube.com" in r.geturl()}
+    except Exception as err:
+        youtube_check["page"] = check_summary(str(err))
+    import yt_dlp
+    folder = Path(tempfile.mkdtemp())
+    for client in CHECK_CLIENTS:
+        log = YdlLog()
+        extra = {"extractor_args": {"youtube": {"player_client": [client]}}} if client else {}
+        opts = ydl_options(format="bestaudio[ext=m4a]/bestaudio", outtmpl=str(folder / f"{client}.%(ext)s"), logger=log, **extra)
+        name = client or "default"
+        try:
+            with download_slots, yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(video, download=True)
+            path = Path(info["requested_downloads"][0]["filepath"])
+            youtube_check["clients"][name] = f"OK: format {info.get('format_id')}, {path.stat().st_size} bytes"
+            path.unlink(missing_ok=True)
+        except Exception as err:
+            reasons = sorted({check_summary(w) for w in log.warnings} | {check_summary(str(err))})
+            youtube_check["clients"][name] = " | ".join(reasons)[:400]
+        print(f"YouTube check, {name}: {youtube_check['clients'][name]}")
+    youtube_check["state"] = "done"
 
 
 def remove_old_temp_songs() -> None:
@@ -319,6 +385,8 @@ class Handler(SimpleHTTPRequestHandler):
             status = {"ok": True, "online": ONLINE, "signedIn": self.has_session(), "downloader": HAS_DOWNLOADER}
             if not ONLINE:
                 status["library"] = str(LIBRARY)
+            if os.environ.get("DANCE_LAB_HOSTED"):
+                status["youtubeCheck"] = youtube_check
             return self.send_json(status)
         if not self.signed_in():
             return None
@@ -441,7 +509,7 @@ def main() -> None:
     if args.lan:
         print(f"On a phone on the same Wi-Fi: http://{lan_address()}:{args.port}/wheres-the-one/")
     if HAS_DOWNLOADER:
-        threading.Thread(target=importlib.import_module, args=("yt_dlp",), daemon=True).start()
+        threading.Thread(target=check_youtube if hosted else importlib.import_module, args=() if hosted else ("yt_dlp",), daemon=True).start()
     else:
         print("Song search is off because yt-dlp isn't installed. Run start.bat or update.bat.")
     if ONLINE:
