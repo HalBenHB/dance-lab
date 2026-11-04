@@ -74,6 +74,14 @@ curl -s -o /dev/null -w "%{http_code}\n" "http://localhost:8766/api/audio?file=.
 
 For an end-to-end download test, use YouTube's first video, "Me at the zoo" (`https://youtu.be/jNQXAC9IVRw`, 19 s). Delete it from **Your songs** afterwards.
 
+## Publishing
+
+`main` is the live version. Pushing to it updates GitHub Pages in about a minute and Render in about 2–3 minutes, with no other step. Work on a branch isn't live until it's merged into `main` and pushed.
+
+1. Run the checklist above.
+2. Merge into `main` and push.
+3. Open `https://dance-lab.onrender.com/api/status` and check that `commit` matches `git rev-parse --short HEAD`.
+
 ## Adding a new tool
 
 1. Create `<tool-name>/index.html` as a complete document: `<!doctype html>`, charset and viewport metas, and the base reset from Where's the One.
@@ -94,9 +102,8 @@ For an end-to-end download test, use YouTube's first video, "Me at the zoo" (`ht
 
 ## Open questions
 
-- **YouTube blocks the Render server,** so online downloads need a proxy or cookies ([online.md](online.md)). The proxy option was only tested against a dead address, and the cookie option with an empty file.
-- **`check_youtube()` in `server.py` is temporary.** It reports through `/api/status` how YouTube treats the hosted server. Remove it, and the `youtubeCheck` field, once online downloads work.
-- **Docker isn't installed on the development machine,** so Render's builds are the only test of the image. A `Download failed` line in Render's logs now includes yt-dlp's warnings.
+- **How long the free proxy keeps working.** YouTube could block Webshare's shared addresses at any time ([online.md](online.md)). It also isn't known yet whether the proxy works without the cookies.
+- **Docker isn't installed on the development machine,** so Render's builds are the only test of the image. A `Download failed` line in Render's logs includes yt-dlp's warnings, which usually hold the real reason.
 - **Online mode on a real phone,** including how long iPhones keep songs in IndexedDB.
 - **Remember fixes per song.** Where the 1 is, the tempo and the nudge are lost on reload. `library.json` could store them per file.
 - **Paso Doble** isn't in the counter yet.
@@ -104,5 +111,4 @@ For an end-to-end download test, use YouTube's first video, "Me at the zoo" (`ht
 - **Timeline dragging on a real phone.** Touch was tested with simulated touch events and the phone-width view, not a real iPhone or Android. Check that a tap starts audio, that a sideways drag moves the song, and that an up-and-down swipe scrolls the page.
 - **Each dance has one pattern.** Jive has only the basic, though many figures in every dance run on other counts. Each new pattern would be a new `DANCES` entry, like the Samba timings.
 - **No automated tests.** The example groove could become a headless test (for example Node plus an `OfflineAudioContext` polyfill), but nothing runs today.
-- **Untested without ffmpeg.** Every download test so far had ffmpeg installed.
 - **Phones talking to the server.** `--lan` was written but hasn't been tested on a real phone.

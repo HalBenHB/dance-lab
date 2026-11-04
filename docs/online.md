@@ -2,7 +2,7 @@
 
 Online mode gives you the full Where's the One from any browser or phone, with no computer of yours running: search YouTube, fetch a song, and see its count. It runs `server.py` on a hosting service, in a Docker container.
 
-> ⚠️ Note: online mode is deployed at https://dance-lab.onrender.com, and sign-in and search work there. **Downloads don't work yet, because YouTube blocks Render's address.** On 2026-11-04, a plain page request got HTTP 429, and all 9 request types yt-dlp offers got HTTP 403 or 429. See [If YouTube blocks the server](#if-youtube-blocks-the-server).
+Online mode is live at https://dance-lab.onrender.com/wheres-the-one/. Full song downloads work there, but only through a proxy, because YouTube blocks Render's own address. See [If YouTube blocks the server](#if-youtube-blocks-the-server).
 
 ## How it differs from running on your computer
 
@@ -30,7 +30,7 @@ If Render won't create the Blueprint on the free plan, create the service by han
 
 You stay signed in for 30 days on each device. Changing the password signs everyone out.
 
-Pushing to `main` redeploys the service automatically.
+Pushing to `main` redeploys the service automatically, usually within 2–3 minutes. To see which version is live, open `/api/status`: its `commit` should match the newest commit on `main`.
 
 ## What the free plan means
 
@@ -45,14 +45,35 @@ A paid plan removes the sleeping and is faster. You can change it later with no 
 
 ## If YouTube blocks the server
 
-YouTube often refuses downloads from hosting companies' addresses. If that happens, the page says "YouTube is blocking this online server". Searching may still work. There are two fixes, and both are settings on the Render service, with no code changes:
+YouTube often refuses downloads from hosting companies' addresses. When it does, the page says "YouTube is blocking this online server". Searching may still work.
 
-| Fix | Setting | Trade-off |
-|---|---|---|
-| Residential proxy | Environment variable `YT_PROXY`, for example `http://user:pass@proxy.example.com:8000` | Costs money, usually charged per GB. A song is about 5 MB |
-| Your YouTube cookies | Export a `cookies.txt` from your browser, add it as a Render **Secret File**, and set `YT_COOKIES_FILE=/etc/secrets/cookies.txt` | Free, but ties the downloads to your Google account. Use a spare account. Cookies expire, and may not be enough alone |
+This is what happened on Render's free plan, in November 2026:
 
-Try one, then download a song again. Never commit a proxy password or cookies file. They contain login details.
+| Setup | Result |
+|---|---|
+| Nothing added | Search works. Every download is refused with HTTP 429 or 403, on all 9 request types yt-dlp offers |
+| Cookies from a spare Google account | A 19-second test clip downloads as format 18. Real songs are still refused with HTTP 429, even after waiting and retrying |
+| Webshare free proxy, cookies still set | **Works.** YouTube offers the real audio stream (format 140), and a full song downloads, plays and stays saved |
+
+Both fixes are settings on the Render service, with no code changes. Never commit a proxy password or cookies file. They contain login details.
+
+### Proxy (the setting in use)
+
+1. Sign up at [webshare.io](https://www.webshare.io) and choose the free plan. It needs no card, and gives 10 shared proxies and 1 GB a month.
+2. On its **Proxy List** page, note one proxy's address, port, username and password.
+3. In Render, open the service's **Environment** page and add `YT_PROXY` with the value `http://USERNAME:PASSWORD@ADDRESS:PORT`.
+4. Save and redeploy.
+
+1 GB is roughly 150 songs a month, at about 5 MB each plus searches. Check your usage in Webshare's dashboard. If these shared addresses get blocked or the allowance runs out, switch to another proxy from the list, or to a paid residential proxy, by changing the same setting. Comparison sites list residential proxies from about $1 per GB; check current prices. Residential proxies send your traffic through other people's home connections, so choose a provider that says those people agreed.
+
+### Cookies
+
+Cookies weren't enough by themselves on Render. If you do use them, use a spare Google account, because yt-dlp's documentation warns that an account used this way can be banned. The steps are in [yt-dlp's guide](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies). Add the file as a Render **Secret File** named `cookies.txt`, and set `YT_COOKIES_FILE=/etc/secrets/cookies.txt`.
+
+### What the server does by itself
+
+- **Waits and retries.** On HTTP 429 it tries up to 3 times, waiting 10 and then 30 seconds.
+- **Accepts a video file.** If YouTube offers no audio-only stream, it takes a combined file such as format 18 and keeps just the audio, using ffmpeg.
 
 ## Keeping it working
 
@@ -80,6 +101,7 @@ They're removed if you clear that browser's site data. Browsers can also clear s
 | `PORT` | Set by Render | The port to listen on. Ignored unless hosted, because on a computer it can mean something else |
 | `YT_PROXY` | No | Proxy URL for yt-dlp |
 | `YT_COOKIES_FILE` | No | Path to a `cookies.txt`, copied to a temp folder because yt-dlp writes to it |
+| `RENDER_GIT_COMMIT` | Set by Render | The deployed commit, shown as `commit` on `/api/status` |
 
 ## Other hosting services
 

@@ -47,7 +47,7 @@ The server listens on `http://localhost:8766` (`--port` changes this). All respo
 
 | Method | Path | Request | Response |
 |---|---|---|---|
-| GET | `/api/status` | — | `{"ok": true, "online": bool, "signedIn": bool, "downloader": bool}`, plus `"library": "C:\\…\\library"` when not online. Never needs a sign-in |
+| GET | `/api/status` | — | `{"ok": true, "online": bool, "signedIn": bool, "downloader": bool}`, plus `"library": "C:\\…\\library"` when not online, and `"commit"` on Render. Never needs a sign-in |
 | POST | `/api/login` | `{"password": "…"}` and header `X-Dance-Lab: 1` | `{"ok": true}` and a session cookie. 401 for a wrong password, 429 after too many. Online mode only |
 | GET | `/api/search?q=…` | `q`: words or a YouTube link | `{"results": [{"id", "title", "channel", "duration"}]}`. `duration` (seconds) is `null` for links. Errors: 502 if the search fails, 503 if there's no downloader |
 | POST | `/api/download` | `{"id": "<11-char video id>"}` and header `X-Dance-Lab: 1` | 202 with a job: `{"id", "state", "percent", "error", "song"}` |

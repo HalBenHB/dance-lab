@@ -279,44 +279,6 @@ def run_download(job: dict) -> None:
             print(f"  yt-dlp warning: {warning}")
 
 
-# TEMPORARY: lets us see from outside how YouTube treats this server. Remove once online downloads work.
-youtube_check: dict = {"state": "not run"}
-CHECK_VIDEOS = {"clip": "jNQXAC9IVRw", "song": "zNBj4EV_hAo"}  # only the clip is downloaded
-
-
-def check_summary(text: str) -> str:
-    text = re.sub(r"https?://\S+", "<url>", ANSI.sub("", text))
-    found = re.search(r"HTTP Error \d+[^'\"\n)]*|Sign in to confirm[^.]*|IP is likely being blocked|Requested format is not available|"
-                      r"Failed to extract any player response|Network is unreachable|timed out", text)
-    return found.group(0) if found else text[:140]
-
-
-def check_youtube() -> None:
-    youtube_check.update(state="running", clients={})
-    importlib.import_module("yt_dlp")
-    folder = Path(tempfile.mkdtemp())
-    for name, video_id in CHECK_VIDEOS.items():
-        log = YdlLog()
-        opts = ydl_options(outtmpl=str(folder / "%(id)s.%(ext)s"), logger=log, **audio_options())
-        started = time.time()
-        try:
-            if name == "song":
-                import yt_dlp
-                with download_slots, yt_dlp.YoutubeDL(opts) as ydl:
-                    info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-                youtube_check["clients"][name] = f"OK, found: format {info.get('format_id')}, {time.time() - started:.0f}s"
-                continue
-            info = fetch_audio(video_id, opts, log)
-            path = Path(info["requested_downloads"][0]["filepath"])
-            youtube_check["clients"][name] = f"OK: format {info.get('format_id')}, {path.suffix}, {path.stat().st_size} bytes, {time.time() - started:.0f}s"
-            path.unlink(missing_ok=True)
-        except Exception as err:
-            warnings = [re.sub(r"https?://\S+", "<url>", w)[:220] for w in dict.fromkeys(log.warnings)]
-            youtube_check["clients"][name] = {"error": check_summary(str(err)), "warnings": warnings[:6]}
-        print(f"YouTube check, {name}: {youtube_check['clients'][name]}")
-    youtube_check["state"] = "done"
-
-
 def remove_old_temp_songs() -> None:
     now = time.time()
     for p in LIBRARY.iterdir():
@@ -403,8 +365,8 @@ class Handler(SimpleHTTPRequestHandler):
             status = {"ok": True, "online": ONLINE, "signedIn": self.has_session(), "downloader": HAS_DOWNLOADER}
             if not ONLINE:
                 status["library"] = str(LIBRARY)
-            if os.environ.get("DANCE_LAB_HOSTED"):
-                status["youtubeCheck"] = youtube_check
+            if os.environ.get("RENDER_GIT_COMMIT"):  # lets anyone check which version is live
+                status["commit"] = os.environ["RENDER_GIT_COMMIT"][:7]
             return self.send_json(status)
         if not self.signed_in():
             return None
@@ -527,7 +489,7 @@ def main() -> None:
     if args.lan:
         print(f"On a phone on the same Wi-Fi: http://{lan_address()}:{args.port}/wheres-the-one/")
     if HAS_DOWNLOADER:
-        threading.Thread(target=check_youtube if hosted else importlib.import_module, args=() if hosted else ("yt_dlp",), daemon=True).start()
+        threading.Thread(target=importlib.import_module, args=("yt_dlp",), daemon=True).start()
     else:
         print("Song search is off because yt-dlp isn't installed. Run start.bat or update.bat.")
     if ONLINE:

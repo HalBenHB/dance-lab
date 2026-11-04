@@ -118,6 +118,25 @@ Each decision lists what was done, why, what else was considered, and what chang
 - **Why:** free servers sleep and lose their memory. Stored sessions would mean signing in again after every sleep.
 - **Do not change because:** a phone user would have to retype the password every time the server slept. Changing the password is how to sign everyone out.
 
+## Online downloads go through a proxy
+
+- **What:** the Render service sets `YT_PROXY` to a free Webshare proxy.
+- **Why:** YouTube refused every download from Render's own address, and cookies alone only got a short test clip through. See the results in [online.md](online.md).
+- **Alternatives considered:** other free hosts, which would probably hit the same block; hosting on the owner's own computer, which wouldn't be completely online.
+- **Do not change because:** removing the proxy brings the block straight back.
+
+## The image uses Deno, not Debian's Node
+
+- **What:** the Dockerfile copies Deno from `denoland/deno`.
+- **Why:** yt-dlp needs Node 22 or newer, and Debian's package is Node 20. yt-dlp then reports no JavaScript runtime. Deno is what yt-dlp recommends, and it finds it with no extra setting.
+- **Do not change because:** going back to Debian's Node silently loses formats.
+
+## Keep yt-dlp's warnings
+
+- **What:** every download passes a `YdlLog`, and failures print its warnings to the server log.
+- **Why:** "Failed to extract any player response" says nothing by itself. The HTTP errors explaining it arrive as warnings, and `no_warnings` was throwing them away.
+- **Do not change because:** the next YouTube change would be undiagnosable again.
+
 ## Pasted links use oEmbed
 
 - **What:** `lookup_link()` asks YouTube's oEmbed endpoint for title and channel.

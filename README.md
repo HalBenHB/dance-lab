@@ -34,7 +34,9 @@ If search or downloads stop working, double-click **`update.bat`**.
 
 ### With YouTube search, completely online
 
-Run the server on a hosting service, and use the full version from any phone or browser with no computer of yours switched on. You set it up once, with a password so only you can use it. Steps are in [docs/online.md](docs/online.md).
+The full version runs on a hosting service, so it works from any phone or browser with no computer of yours switched on. It's at https://dance-lab.onrender.com/wheres-the-one/ and needs a password. The first visit after a quiet spell takes about a minute while the server wakes.
+
+To set up your own, follow [docs/online.md](docs/online.md).
 
 Songs you fetch this way are saved in the browser on that device.
 
@@ -53,7 +55,12 @@ Press **1** on your keyboard (or the **This is the 1** button) at the moment you
 | `update.bat` | Double-click to update the YouTube downloader when it stops working |
 | `requirements.txt` | The extra Python package the server needs (yt-dlp) |
 | `Dockerfile`, `render.yaml` | Recipe for running the server online on Render |
+| `CLAUDE.md` | How to publish changes, for anyone (or any AI assistant) working on this |
 | `library/` | Songs downloaded on your computer. Created on first download and never uploaded to GitHub |
 | `docs/` | Detailed documentation: how it works, setup, design notes |
+
+## Updating the websites
+
+Pushing to `main` updates both websites automatically: GitHub Pages in about a minute and the online version in about 2–3 minutes. Work on another branch isn't live until it's merged into `main`.
 
 Want to know how it works or change something? Start at [docs/README.md](docs/README.md).

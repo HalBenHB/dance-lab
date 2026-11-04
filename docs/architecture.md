@@ -131,6 +131,7 @@ File or Blob ─► decodeAudioData (22,050 Hz)
 - **Downloads** run in a background thread per video id, tracked in `jobs`. The page polls `/api/jobs`.
 - **Library index:** `library/library.json` is rewritten atomically (temp file, then rename) under a lock. `scan_library()` also lists audio files that were copied into `library/` by hand.
 - **yt-dlp loads in the background.** Importing it takes seconds, so the server starts listening first and uses `find_spec` to report whether it's installed.
+- **Downloads** (`fetch_audio`) retry on HTTP 429, accept a combined video file when no audio-only stream is offered (`AUDIO_FORMAT`), and keep yt-dlp's warnings for the log (`YdlLog`).
 - **Online mode** turns on when `DANCE_LAB_PASSWORD` is set. API calls then need a signed session cookie, songs go to a temp folder, and each is deleted once it has been sent. Details are in [online.md](online.md).
 
 API details are in [song-library.md](song-library.md).
@@ -163,7 +164,7 @@ There are almost no classes. The structure comes from a few deliberate patterns:
 |---|---|---|---|---|
 | Google Fonts: Big Shoulders Display, Hanken Grotesk, IBM Plex Mono | No (a CSS link) | Typography | Display face for big counts, readable body face, mono for numbers | Canvas text also names these families. Keep the fallback stacks |
 | yt-dlp (`yt-dlp[default]`) | No, on purpose | YouTube search and download | The maintained standard; `[default]` includes `yt-dlp-ejs` for YouTube's JavaScript challenges | Pinning breaks downloads within weeks. Update with `update.bat` |
-| Node.js or Deno | System install | JavaScript runtime that yt-dlp needs for YouTube | Most people already have Node | `ydl_options()` enables Node only when Deno is missing |
+| Deno 2.3+ or Node 22+ | Deno in the online image; a system install on your computer | JavaScript runtime that yt-dlp needs for YouTube | Deno is what yt-dlp recommends; most people already have Node | `ydl_options()` enables Node only when Deno is missing. Older versions don't work |
 | ffmpeg | System install, optional | yt-dlp's m4a container fix-up | Present on the development machine | Untested without it |
 | `i.ytimg.com` | n/a | Thumbnails in search results and the library | No API key needed | Thumbnails hide on error; nothing breaks offline |
 | YouTube oEmbed | n/a | Fast title lookup for pasted links | About 0.9 s instead of about 10 s through yt-dlp | Falls back to yt-dlp when it fails |

@@ -2,6 +2,30 @@
 
 Newest first. Each entry says what changed and why. Anything under **Removed** must not come back without the owner asking for it.
 
+## 2026-11-05: Online downloads work
+
+The owner downloaded a real song on the live server, and it played and stayed saved.
+
+**Added**
+
+- `fetch_audio` waits and retries on HTTP 429, up to 3 tries, because YouTube's limit on shared addresses comes and goes.
+- `AUDIO_FORMAT` accepts a combined video file such as format 18 when no audio-only stream is offered, and keeps just the audio if ffmpeg is there.
+- `/api/status` reports the deployed `commit` on Render, so anyone can check which version is live.
+- `CLAUDE.md`, and a Publishing section in the docs: `main` is the live version.
+
+**Changed**
+
+- The Render service uses a free Webshare proxy (`YT_PROXY`), after cookies alone turned out not to be enough. See [online.md](online.md).
+
+**Removed**
+
+- The temporary self-test, `check_youtube()`, and its `youtubeCheck` field. It ran on every wake-up and used up the proxy allowance. If the server needs diagnosing again, add it back only for as long as that takes.
+
+**Direction**
+
+- Try removing the cookies, to take the spare Google account out of this.
+- Add stars and playlists. The owner wants a song's details saved without its audio, with **Load** fetching the audio into that browser.
+
 ## 2026-11-04: First deployment to Render
 
 **Fixed**
