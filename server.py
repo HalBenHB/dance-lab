@@ -1,38 +1,55 @@
-"""Dance Lab local server.
+"""Dance Lab server.
 
 Serves the Dance Lab pages and adds a song library to Where's the One:
-search YouTube, save a song's audio (m4a) into library/, and load it.
+search YouTube, fetch a song's audio (m4a), and load it.
 
+On your computer:
     start.bat                  double-click on Windows; sets everything up
     python server.py           http://localhost:8766/wheres-the-one/
     python server.py --lan     also reachable from phones on the same Wi-Fi
+
+Online (see docs/online.md): set DANCE_LAB_PASSWORD. Search and downloads then
+need a sign-in, and songs are only passed through to the browser, which keeps them.
+Optional: YT_PROXY (proxy URL) and YT_COOKIES_FILE (cookies.txt path) for yt-dlp.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
+import importlib
+import importlib.util
 import json
+import os
 import re
 import shutil
 import socket
 import sys
+import tempfile
 import threading
 import time
 import webbrowser
 from datetime import datetime, timezone
+from http.cookies import CookieError, SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 from urllib.request import urlopen
 
-try:
-    import yt_dlp
-except ImportError:  # the page then shows how to install it instead of the search bar
-    yt_dlp = None
+HAS_DOWNLOADER = importlib.util.find_spec("yt_dlp") is not None  # yt-dlp itself loads in the background; it's slow
+PASSWORD = os.environ.get("DANCE_LAB_PASSWORD", "")
+ONLINE = bool(PASSWORD)
+YT_PROXY = os.environ.get("YT_PROXY", "")
+YT_COOKIES_FILE = os.environ.get("YT_COOKIES_FILE", "")
 
 ROOT = Path(__file__).resolve().parent
-LIBRARY = ROOT / "library"
+LIBRARY = Path(tempfile.gettempdir()) / "dance-lab-songs" if ONLINE else ROOT / "library"
 INDEX = LIBRARY / "library.json"
 PORT = 8766
+SESSION_COOKIE = "dance_lab_session"
+SESSION_SECONDS = 30 * 24 * 3600
+MAX_FAILED_LOGINS = 10  # per 10 minutes
+TEMP_SONG_SECONDS = 3600  # online: songs the browser never collected are removed after this long
 AUDIO_TYPES = {
     ".m4a": "audio/mp4", ".mp4": "audio/mp4", ".webm": "audio/webm", ".opus": "audio/ogg",
     ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".flac": "audio/flac",
@@ -43,8 +60,11 @@ LINK_ID = re.compile(r"(?:[?&]v=|youtu\.be/|/shorts/|/embed/|/live/)([\w-]{11})"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 lock = threading.Lock()
+download_slots = threading.Semaphore(2)  # small online servers run out of memory with more
 jobs: dict[str, dict] = {}
 search_cache: dict[str, tuple[float, list]] = {}
+failed_logins: list[float] = []
+SESSION_KEY = hashlib.pbkdf2_hmac("sha256", PASSWORD.encode(), b"dance-lab-session", 200_000) if ONLINE else b""
 
 
 def ydl_options(**extra) -> dict:
@@ -52,8 +72,32 @@ def ydl_options(**extra) -> dict:
     # YouTube needs a JavaScript runtime; yt-dlp only looks for Deno unless told otherwise
     if shutil.which("node") and not shutil.which("deno"):
         opts["js_runtimes"] = {"node": {}}
+    if YT_PROXY:
+        opts["proxy"] = YT_PROXY
+    if YT_COOKIES_FILE:
+        # yt-dlp writes back to its cookie file, and hosting services mount secret files read-only
+        copy = Path(tempfile.gettempdir()) / "dance-lab-cookies.txt"
+        if not copy.exists():
+            shutil.copyfile(YT_COOKIES_FILE, copy)
+        opts["cookiefile"] = str(copy)
     opts.update(extra)
     return opts
+
+
+def session_signature(expires: str) -> bytes:
+    return hmac.new(SESSION_KEY, expires.encode(), hashlib.sha256).hexdigest().encode()
+
+
+def new_session() -> str:
+    expires = str(int(time.time()) + SESSION_SECONDS)
+    return f"{expires}.{session_signature(expires).decode()}"
+
+
+def valid_session(token: str) -> bool:
+    expires, _, signature = token.partition(".")
+    if not expires.isascii() or not expires.isdigit() or int(expires) < time.time():
+        return False
+    return hmac.compare_digest(signature.encode(), session_signature(expires))
 
 
 def now_iso(ts: float | None = None) -> str:
@@ -109,6 +153,7 @@ def search(query: str) -> list[dict]:
         except Exception:  # oEmbed refuses some videos; let yt-dlp try
             pass
     if results is None:
+        import yt_dlp
         target = f"https://www.youtube.com/watch?v={link.group(1)}" if link else f"ytsearch12:{query}"
         with yt_dlp.YoutubeDL(ydl_options(skip_download=True, extract_flat="in_playlist")) as ydl:
             info = ydl.extract_info(target, download=False)
@@ -160,8 +205,12 @@ def run_download(job: dict) -> None:
         progress_hooks=[progress],
     )
     try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={job['id']}", download=True)
+        with download_slots:
+            import yt_dlp
+            if ONLINE:
+                remove_old_temp_songs()
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={job['id']}", download=True)
         path = Path(info["requested_downloads"][0]["filepath"])
         song = {"file": path.name, "title": info.get("title") or path.stem,
                 "channel": info.get("channel") or info.get("uploader") or "",
@@ -173,13 +222,22 @@ def run_download(job: dict) -> None:
     except Exception as err:  # yt-dlp raises many error types; the page shows the message
         text = clean_error(err)
         if "Sign in to confirm" in text:
-            message = "YouTube wants to check you're not a bot. Wait a few minutes and try again."
+            message = ("YouTube is blocking this online server. It needs a proxy or cookies: see docs/online.md."
+                       if ONLINE else "YouTube wants to check you're not a bot. Wait a few minutes and try again.")
         elif "Private video" in text or "unavailable" in text.lower():
             message = "This video is private or not available in your country."
         else:
-            message = f"The download failed ({text[:160]}). If this keeps happening, run update.bat."
+            fix = "redeploy the server with a cleared build cache" if ONLINE else "run update.bat"
+            message = f"The download failed ({text[:160]}). If this keeps happening, {fix}."
         job.update(state="error", error=message)
         print(f"Download failed for {job['id']}: {text}")
+
+
+def remove_old_temp_songs() -> None:
+    now = time.time()
+    for p in LIBRARY.iterdir():
+        if p.is_file() and p != INDEX and now - p.stat().st_mtime > TEMP_SONG_SECONDS:
+            p.unlink(missing_ok=True)
 
 
 # ---------- HTTP ----------
@@ -196,12 +254,14 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_header("Cache-Control", "no-cache")
         super().end_headers()
 
-    def send_json(self, data, status: int = 200) -> None:
+    def send_json(self, data, status: int = 200, cookie: str | None = None) -> None:
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
         self.end_headers()
         self.wfile.write(body)
 
@@ -211,6 +271,38 @@ class Handler(SimpleHTTPRequestHandler):
             return True
         self.send_json({"error": "This request must come from the Dance Lab page."}, 403)
         return False
+
+    def has_session(self) -> bool:
+        if not ONLINE:
+            return True
+        try:
+            morsel = SimpleCookie(self.headers.get("Cookie", "")).get(SESSION_COOKIE)
+        except CookieError:
+            return False
+        return morsel is not None and valid_session(morsel.value)
+
+    def signed_in(self) -> bool:
+        if self.has_session():
+            return True
+        self.send_json({"error": "Please sign in."}, 401)
+        return False
+
+    def login(self, password: str) -> None:
+        now = time.time()
+        with lock:
+            failed_logins[:] = [t for t in failed_logins if now - t < 600]
+            blocked = len(failed_logins) >= MAX_FAILED_LOGINS
+            right = ONLINE and hmac.compare_digest(password.encode(), PASSWORD.encode())
+            if not right and not blocked:
+                failed_logins.append(now)
+        if blocked:
+            return self.send_json({"error": "Too many wrong tries. Wait 10 minutes and try again."}, 429)
+        if not right:
+            time.sleep(1)
+            return self.send_json({"error": "Wrong password."}, 401)
+        secure = "; Secure" if self.headers.get("X-Forwarded-Proto") == "https" else ""
+        cookie = f"{SESSION_COOKIE}={new_session()}; Path=/; Max-Age={SESSION_SECONDS}; HttpOnly; SameSite=Strict{secure}"
+        return self.send_json({"ok": True}, cookie=cookie)
 
     def do_GET(self):
         url = urlparse(self.path)
@@ -224,14 +316,18 @@ class Handler(SimpleHTTPRequestHandler):
     def api_get(self, path: str, qs: dict) -> None:
         arg = lambda name: (qs.get(name) or [""])[0].strip()
         if path == "/api/status":
-            return self.send_json({"ok": True, "downloader": yt_dlp is not None,
-                                   "version": yt_dlp.version.__version__ if yt_dlp else None,
-                                   "library": str(LIBRARY)})
+            status = {"ok": True, "online": ONLINE, "signedIn": self.has_session(), "downloader": HAS_DOWNLOADER}
+            if not ONLINE:
+                status["library"] = str(LIBRARY)
+            return self.send_json(status)
+        if not self.signed_in():
+            return None
         if path == "/api/library":
             with lock:
-                return self.send_json({"songs": scan_library()})
+                songs = scan_library()
+            return self.send_json({"songs": songs})
         if path == "/api/search":
-            if yt_dlp is None:
+            if not HAS_DOWNLOADER:
                 return self.send_json({"error": "The downloader isn't installed. Run start.bat or update.bat."}, 503)
             query = arg("q")
             if len(query) < 2:
@@ -239,7 +335,8 @@ class Handler(SimpleHTTPRequestHandler):
             try:
                 return self.send_json({"results": search(query)})
             except Exception as err:
-                return self.send_json({"error": f"Search failed ({clean_error(err)[:160]}). Check your internet connection."}, 502)
+                hint = "" if ONLINE else " Check your internet connection."
+                return self.send_json({"error": f"Search failed ({clean_error(err)[:160]}).{hint}"}, 502)
         if path == "/api/jobs":
             job = jobs.get(arg("id"))
             return self.send_json(job) if job else self.send_json({"error": "No such download."}, 404)
@@ -257,18 +354,27 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         with path.open("rb") as f:
             shutil.copyfileobj(f, self.wfile)
+        if ONLINE:  # the browser has it now, and an interrupted transfer raises before this line
+            path.unlink(missing_ok=True)
 
     def do_POST(self):
-        if urlparse(self.path).path != "/api/download":
+        path = urlparse(self.path).path
+        if path not in ("/api/download", "/api/login"):
             return self.send_json({"error": "Unknown address."}, 404)
         if not self.from_page():
-            return
-        if yt_dlp is None:
-            return self.send_json({"error": "The downloader isn't installed. Run start.bat or update.bat."}, 503)
+            return None
         try:
-            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
-        except json.JSONDecodeError:
+            body = json.loads(self.rfile.read(min(int(self.headers.get("Content-Length") or 0), 65536)) or b"{}")
+        except ValueError:
             body = {}
+        if not isinstance(body, dict):
+            body = {}
+        if path == "/api/login":
+            return self.login(str(body.get("password", "")))
+        if not self.signed_in():
+            return None
+        if not HAS_DOWNLOADER:
+            return self.send_json({"error": "The downloader isn't installed. Run start.bat or update.bat."}, 503)
         video_id = str(body.get("id", ""))
         if not VIDEO_ID.match(video_id):
             return self.send_json({"error": "That isn't a YouTube video."}, 400)
@@ -278,8 +384,8 @@ class Handler(SimpleHTTPRequestHandler):
         url = urlparse(self.path)
         if url.path != "/api/library":
             return self.send_json({"error": "Unknown address."}, 404)
-        if not self.from_page():
-            return
+        if not self.from_page() or not self.signed_in():
+            return None
         name = Path((parse_qs(url.query).get("file") or [""])[0]).name
         path = LIBRARY / name
         if not name or path.suffix.lower() not in AUDIO_TYPES or not path.is_file():
@@ -312,15 +418,21 @@ def lan_address() -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Dance Lab local server")
-    parser.add_argument("--port", type=int, default=PORT)
+    hosted = bool(os.environ.get("DANCE_LAB_HOSTED"))  # set by the Dockerfile
+    if hosted and not ONLINE:
+        print("DANCE_LAB_PASSWORD isn't set. Set a password first, so strangers can't use your downloader.")
+        sys.exit(1)
+
+    parser = argparse.ArgumentParser(description="Dance Lab server")
+    # hosting services say which port to use; on a computer, PORT may mean something else entirely
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT") or PORT) if hosted else PORT)
     parser.add_argument("--lan", action="store_true", help="also accept phones and tablets on the same Wi-Fi")
     parser.add_argument("--no-browser", action="store_true", help="don't open the browser")
     args = parser.parse_args()
 
     url = f"http://localhost:{args.port}/wheres-the-one/"
     try:
-        server = Server(("0.0.0.0" if args.lan else "127.0.0.1", args.port), Handler)
+        server = Server(("0.0.0.0" if args.lan or hosted else "127.0.0.1", args.port), Handler)
     except OSError:
         print(f"Port {args.port} is busy. Dance Lab may already be running: open {url}")
         sys.exit(1)
@@ -328,11 +440,16 @@ def main() -> None:
     print(f"Dance Lab is running at {url}")
     if args.lan:
         print(f"On a phone on the same Wi-Fi: http://{lan_address()}:{args.port}/wheres-the-one/")
-    if yt_dlp is None:
+    if HAS_DOWNLOADER:
+        threading.Thread(target=importlib.import_module, args=("yt_dlp",), daemon=True).start()
+    else:
         print("Song search is off because yt-dlp isn't installed. Run start.bat or update.bat.")
-    print(f"Songs are saved in {LIBRARY}")
+    if ONLINE:
+        print("Online mode: sign-in required. Songs go to the browser and aren't kept here.")
+    else:
+        print(f"Songs are saved in {LIBRARY}")
     print("Close this window or press Ctrl+C to stop.")
-    if not args.no_browser:
+    if not args.no_browser and not hosted:
         threading.Timer(0.8, webbrowser.open, [url]).start()
     try:
         server.serve_forever()

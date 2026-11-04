@@ -4,9 +4,9 @@ Practice tools for Latin dance.
 
 The main tool is **Where's the One**. It plays a song and shows you the count while it plays: every beat, where each bar's 1 is, and where your feet go in Rumba, Cha-cha and Samba. You can slow the song down, loop a few bars, and add a click track.
 
-On your own computer, it also has a search bar: find a song on YouTube, download it, and check its count right away.
+With its server running, either on your computer or online, it also has a search bar: find a song on YouTube, fetch it, and check its count right away.
 
-**Live site:** https://halbenhb.github.io/dance-lab/
+**Live site (no search bar):** https://halbenhb.github.io/dance-lab/
 
 ## How to use it
 
@@ -32,6 +32,12 @@ If search or downloads stop working, double-click **`update.bat`**.
 
 > Downloading from YouTube may go against YouTube's rules, and songs are copyrighted. Use downloads only for your own practice.
 
+### With YouTube search, completely online
+
+Run the server on a hosting service, and use the full version from any phone or browser with no computer of yours switched on. You set it up once, with a password so only you can use it. Steps are in [docs/online.md](docs/online.md).
+
+Songs you fetch this way are saved in the browser on that device.
+
 ### If the count looks wrong
 
 Press **1** on your keyboard (or the **This is the 1** button) at the moment you hear the one. More fixes are under **Fix the count** on the page.
@@ -42,11 +48,12 @@ Press **1** on your keyboard (or the **This is the 1** button) at the moment you
 |---|---|
 | `index.html` | Home page: the list of tools and a table of dance tempos |
 | `wheres-the-one/index.html` | The beat counter. All of it lives in this one file |
-| `server.py` | Small program that runs on your computer for YouTube search and the song library |
+| `server.py` | Small program for YouTube search and the song library, on your computer or online |
 | `start.bat` | Double-click to start Dance Lab on your computer (sets things up the first time) |
 | `update.bat` | Double-click to update the YouTube downloader when it stops working |
 | `requirements.txt` | The extra Python package the server needs (yt-dlp) |
-| `library/` | Your downloaded songs. Created on first download and never uploaded to GitHub |
+| `Dockerfile`, `render.yaml` | Recipe for running the server online on Render |
+| `library/` | Songs downloaded on your computer. Created on first download and never uploaded to GitHub |
 | `docs/` | Detailed documentation: how it works, setup, design notes |
 
 Want to know how it works or change something? Start at [docs/README.md](docs/README.md).

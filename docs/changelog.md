@@ -2,6 +2,30 @@
 
 Newest first. Each entry says what changed and why. Anything under **Removed** must not come back without the owner asking for it.
 
+## 2026-11-04: Online mode
+
+**Added**
+
+- Online mode in `server.py`, switched on by `DANCE_LAB_PASSWORD`: password sign-in with a 30-day signed cookie, and a limit on wrong tries. The owner wanted the full counter online with no computer running.
+- Songs in online mode are passed through to the browser and deleted from the server. `browserStore` keeps them in IndexedDB. This makes free hosting possible and keeps songs off a rented server.
+- `Dockerfile`, `.dockerignore` and `render.yaml` for hosting on Render.
+- `YT_PROXY` and `YT_COOKIES_FILE` settings, for when YouTube blocks the host.
+- `docs/online.md`.
+
+**Changed**
+
+- yt-dlp now loads in the background, so the server starts listening immediately. `/api/status` no longer reports its version.
+- At most two downloads run at once.
+
+**Fixed**
+
+- During development, a stray `PORT` variable made the server think it was hosted and refuse to start. Only `DANCE_LAB_HOSTED` means hosted now.
+
+**Direction**
+
+- Deploy to Render and find out whether YouTube blocks it. That decides whether a proxy or cookies are needed.
+- Test on a real phone.
+
 ## 2026-11-03: Song library and documentation
 
 **Added**

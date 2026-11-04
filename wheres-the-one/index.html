@@ -195,6 +195,11 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
 
 /* song library (only shown when the page runs from the local server) */
 .library { display: flex; flex-direction: column; gap: 12px; }
+.login { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.login label { font-weight: 600; }
+.login input { flex: 1 1 180px; min-width: 0; font: inherit; color: var(--ink); background: var(--surface); padding: 8px 12px; min-height: 38px; border: 1px solid var(--line); border-radius: 10px; }
+.login-error { flex-basis: 100%; color: var(--one); font-size: .88rem; }
+.login-error:empty { display: none; }
 .search-row { position: relative; }
 .search-row svg { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 #q {
@@ -261,18 +266,24 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
   </header>
 
   <section class="library" id="library" aria-label="Song library" hidden>
-    <div class="search-row">
+    <form class="login" id="loginForm" hidden>
+      <label for="loginPassword">Sign in to search YouTube</label>
+      <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password" required>
+      <button class="btn primary" type="submit">Sign in</button>
+      <span class="login-error" id="loginError" role="alert"></span>
+    </form>
+    <div class="search-row" id="searchRow">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
       <input id="q" type="search" placeholder="Search YouTube for a song, or paste a link" autocomplete="off" spellcheck="false" aria-label="Search YouTube">
       <span class="search-state" id="searchState" aria-live="polite"></span>
     </div>
     <div class="lists">
-      <div class="list-col">
+      <div class="list-col" id="resultsCol">
         <h2 class="list-title">YouTube</h2>
         <ul class="rows" id="results"><li class="empty">Type a song or artist to search.</li></ul>
       </div>
       <div class="list-col">
-        <h2 class="list-title">Your songs <span id="songCount"></span></h2>
+        <h2 class="list-title"><span id="songsTitle">Your songs</span> <span id="songCount"></span></h2>
         <ul class="rows" id="songs"><li class="empty">Songs you download appear here.</li></ul>
       </div>
     </div>
@@ -1253,7 +1264,50 @@ async function loadFile(file, title) {
 }
 
 /* ---------- song library (needs the local server: start.bat) ---------- */
-const L = { results: [], songs: [], jobs: {}, current: null, armed: null, query: '', searchCtl: null, searchTimer: 0, disarmTimer: 0 };
+const L = { results: [], songs: [], jobs: {}, current: null, armed: null, query: '', searchCtl: null, searchTimer: 0, disarmTimer: 0, online: false, store: null };
+
+async function fetchAudio(file) {
+  const r = await fetch('/api/audio?file=' + encodeURIComponent(file), { cache: 'no-store' });
+  if (!r.ok) throw new Error(String(r.status));
+  return r.blob();
+}
+// On your computer, songs live in library/ and the server lists them.
+const diskStore = {
+  async list() { return (await api('/api/library')).songs; },
+  blob: song => fetchAudio(song.file),
+  remove: song => api('/api/library?file=' + encodeURIComponent(song.file), { method: 'DELETE' })
+};
+// Online, the server only passes songs through, so each browser keeps its own.
+const browserStore = {
+  db: null,
+  open() {
+    this.db = this.db || new Promise((res, rej) => {
+      const r = indexedDB.open('dance-lab', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('songs', { keyPath: 'file' });
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    return this.db;
+  },
+  async run(mode, action) {
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('songs', mode), req = action(t.objectStore('songs'));
+      t.oncomplete = () => res(req.result);
+      t.onerror = t.onabort = () => rej(t.error);
+    });
+  },
+  async list() {
+    const all = await this.run('readonly', s => s.getAll());
+    return all.map(({ blob, ...song }) => song).sort((a, b) => String(b.added).localeCompare(String(a.added)));
+  },
+  async blob(song) { return (await this.run('readonly', s => s.get(song.file))).blob; },
+  remove(song) { return this.run('readwrite', s => s.delete(song.file)); },
+  add(song, blob) {
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    return this.run('readwrite', s => s.put({ ...song, blob }));
+  }
+};
 const onComputer = () => location.protocol === 'file:' || /^(localhost|127\.|\[::1\]|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
 
 function el(tag, cls, text) {
@@ -1283,25 +1337,49 @@ async function api(path, opts = {}) {
   if (opts.body) headers['Content-Type'] = 'application/json';
   const r = await fetch(path, { ...opts, headers, cache: 'no-store' });
   const data = await r.json().catch(() => ({}));
+  if (r.status === 401 && L.online) showSignIn(true);
   if (!r.ok) throw new Error(data.error || `Dance Lab's server answered with error ${r.status}.`);
   return data;
 }
 
+function showSignIn(on) {
+  $('loginForm').hidden = !on;
+  $('searchRow').hidden = on;
+  $('resultsCol').hidden = on;
+}
 async function initLibrary() {
   let status = null;
   if (location.protocol !== 'file:') {
     try { status = await api('/api/status', { signal: AbortSignal.timeout(2500) }); } catch (e) {}
   }
   if (!status || !status.ok) { $('libraryOff').hidden = !onComputer(); return; }
+  L.online = !!status.online;
+  L.store = L.online ? browserStore : diskStore;
   $('library').hidden = false;
+  if (L.online) {
+    $('songsTitle').textContent = 'Your songs on this device';
+    showSignIn(!status.signedIn);
+  }
   if (!status.downloader) {
     $('q').disabled = true;
     $('q').placeholder = 'Search is off: run update.bat to install the downloader';
   }
   refreshLibrary();
 }
+async function signIn(e) {
+  e.preventDefault();
+  $('loginError').textContent = '';
+  try {
+    await api('/api/login', { method: 'POST', body: JSON.stringify({ password: $('loginPassword').value }) });
+    $('loginPassword').value = '';
+    showSignIn(false);
+    $('q').focus();
+  } catch (err) {
+    $('loginError').textContent = err.message;
+  }
+}
 async function refreshLibrary() {
-  try { L.songs = (await api('/api/library')).songs; } catch (e) { toast(e.message); }
+  try { L.songs = await L.store.list(); } catch (e) { toast(e.message); }
   renderSongs();
   for (const r of L.results) updateResultRow(r.id);
 }
@@ -1366,7 +1444,8 @@ function onQuery() {
     renderResults([], 'Type a song or artist to search.');
     return;
   }
-  L.searchTimer = setTimeout(runSearch, 450);
+  // a small online server is slower, and every search it starts runs to the end
+  L.searchTimer = setTimeout(runSearch, L.online ? 800 : 450);
 }
 async function runSearch() {
   const q = L.query;
@@ -1375,6 +1454,7 @@ async function runSearch() {
   const ctl = L.searchCtl = new AbortController();
   $('searchState').textContent = 'Searching…';
   $('results').classList.add('stale');
+  const slow = setTimeout(() => { if (ctl === L.searchCtl) $('searchState').textContent = 'Still searching…'; }, 6000);
   try {
     const data = await api('/api/search?q=' + encodeURIComponent(q), { signal: ctl.signal });
     if (ctl !== L.searchCtl) return;
@@ -1384,6 +1464,8 @@ async function runSearch() {
     if (ctl !== L.searchCtl) return;
     L.results = [];
     renderResults([], e.message);
+  } finally {
+    clearTimeout(slow);
   }
   $('searchState').textContent = '';
   $('results').classList.remove('stale');
@@ -1401,22 +1483,35 @@ async function download(id) {
     L.jobs[id] = job;
     updateResultRow(id);
     if (job.state === 'done') {
+      let blob = null, note = `Saved "${job.song.title}" to your songs.`;
+      if (L.online) {
+        try {
+          blob = await fetchAudio(job.song.file);
+          await browserStore.add(job.song, blob);
+        } catch (e) {
+          if (!blob) {
+            job.state = 'error';
+            updateResultRow(id);
+            toast(`Couldn't get "${job.song.title}" from the server. Try downloading it again.`);
+            return;
+          }
+          note = `Couldn't save "${job.song.title}" on this device, but you can use it now.`;
+        }
+      }
       await refreshLibrary();
-      toast(`Saved "${job.song.title}" to your songs.`);
-      loadFromLibrary(job.song);
+      toast(note);
+      loadFromLibrary(job.song, blob);
       return;
     }
     if (job.state === 'error') { toast(job.error || 'The download failed.'); return; }
   }
 }
 
-async function loadFromLibrary(song) {
+async function loadFromLibrary(song, knownBlob) {
   setBusy(true, `Opening ${song.title}…`, 0.01);
   let file;
   try {
-    const r = await fetch('/api/audio?file=' + encodeURIComponent(song.file), { cache: 'no-store' });
-    if (!r.ok) throw new Error(String(r.status));
-    const blob = await r.blob();
+    const blob = knownBlob || await L.store.blob(song);
     file = new File([blob], song.file, { type: blob.type });
   } catch (e) {
     setBusy(false);
@@ -1440,7 +1535,7 @@ async function deleteSong(s) {
   }
   L.armed = null;
   try {
-    await api('/api/library?file=' + encodeURIComponent(s.file), { method: 'DELETE' });
+    await L.store.remove(s);
     if (L.current === s.file) L.current = null;
     toast(`Deleted "${s.title}".`);
   } catch (e) { toast(e.message); }
@@ -1454,6 +1549,7 @@ $('file').addEventListener('change', async e => {
   e.target.value = '';
   if (await loadFile(f)) { L.current = null; renderSongs(); }
 });
+$('loginForm').addEventListener('submit', signIn);
 $('q').addEventListener('input', onQuery);
 $('q').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); clearTimeout(L.searchTimer); runSearch(); }

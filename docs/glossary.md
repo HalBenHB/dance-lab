@@ -37,7 +37,9 @@ Use these terms exactly, in code, docs and messages.
 | **example groove** | The synthesized 16-bar cha-cha the page opens with | `makeDemo()` |
 | **song library** | Saved songs plus YouTube search, served by the local server | `#library`, `library/` |
 | **Your songs** | The saved-songs list in the library panel | `#songs` |
-| **local server** | `server.py`, started by `start.bat` | — |
+| **local server** | `server.py` on your own computer, started by `start.bat` | — |
+| **online mode** | `server.py` with `DANCE_LAB_PASSWORD` set: sign-in required, songs kept in the browser | `ONLINE`, `L.online`, [online.md](online.md) |
+| **hosted** | Running in the Docker image on a hosting service (`DANCE_LAB_HOSTED`). Hosted always means online mode, but online mode can also be tried locally | `main()` in `server.py` |
 | **backup player** | Web Audio playback used when `<audio>` can't load the file | `player.mode === 'buffer'` |
 
 ## Easily confused

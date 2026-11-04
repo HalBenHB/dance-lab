@@ -66,7 +66,7 @@ These match the reference table on the home page.
 | Jive | 4/4 | 1, 2, 3 a 4, 3 a 4 | 42–44 | 168–176 | Not yet |
 | Paso Doble | 2/4 | 1, 2 | 60–62 | 120–124 | Not yet |
 
-Tempos follow WDSF competition rules. Show and social routines often use slower music, such as "Jesus to a Child" for rumba at about 23 MPM.
+Tempos follow WDSF competition rules. Show and social routines often use slower music, such as "Jesus to a Child" for rumba, which the counter reads at about 87 BPM, or 22 MPM.
 
 Two timing facts the tool is built to show:
 

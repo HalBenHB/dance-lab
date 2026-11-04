@@ -54,7 +54,11 @@ python -m venv .venv
 
 Pass them through `start.bat` too, for example `start.bat --lan`.
 
-There are no environment variables or config files. The song folder is always `library/` next to `server.py`.
+On your computer there are no config files and nothing else to set. The song folder is always `library/` next to `server.py`.
+
+### Completely online
+
+To run it on a hosting service instead of your computer, see [online.md](online.md).
 
 ## Updating the downloader
 

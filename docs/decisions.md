@@ -78,6 +78,31 @@ Each decision lists what was done, why, what else was considered, and what chang
 - **Why:** the owner chose this location. Ignoring it keeps copyrighted audio out of a public repo.
 - **Do not change because:** committing songs would publish copyrighted material on GitHub.
 
+## The online server keeps no songs
+
+- **What:** online, `server.py` downloads a song to a temp folder, sends it to the browser, and deletes it. Each browser keeps its own songs in IndexedDB.
+- **Why:** free hosting has a temporary disk, so server storage would mean paying for a disk. This also keeps copyrighted files off a rented server, and makes it possible to learn whether YouTube blocks the host before paying for anything.
+- **Alternatives considered:** a paid persistent disk or cloud storage. That would share one library across devices, at a monthly cost.
+- **Do not change because:** storing songs on the server raises the cost and the copyright exposure. Sharing songs across devices would need a deliberate decision on both.
+
+## Online mode needs a password, and the image refuses to run without one
+
+- **What:** `DANCE_LAB_PASSWORD` switches on sign-in. The Dockerfile sets `DANCE_LAB_HOSTED=1`, and the server exits in that mode if there's no password.
+- **Why:** without it, a deployment is a public YouTube downloader under the owner's name.
+- **Do not change because:** a missed setting must fail loudly, not run open.
+
+## Only `DANCE_LAB_HOSTED` means "hosted", not `PORT`
+
+- **What:** `PORT` is read only when `DANCE_LAB_HOSTED` is set.
+- **Why:** the first version treated any `PORT` as a hosting service. Development tools and other software set `PORT` too, and `start.bat` then refused to run.
+- **Do not change because:** that bug comes straight back.
+
+## Sign-ins are signed cookies, not stored sessions
+
+- **What:** the cookie holds an expiry and an HMAC of it, with a key derived from the password by PBKDF2.
+- **Why:** free servers sleep and lose their memory. Stored sessions would mean signing in again after every sleep.
+- **Do not change because:** a phone user would have to retype the password every time the server slept. Changing the password is how to sign everyone out.
+
 ## Pasted links use oEmbed
 
 - **What:** `lookup_link()` asks YouTube's oEmbed endpoint for title and channel.
@@ -124,3 +149,6 @@ These look odd but are intentional:
 | `log_message` does nothing | `Handler` | Keeps the console readable for non-developers; real events print their own lines |
 | `handle_error` ignores `ConnectionError` | `Server` | Cancelled searches would otherwise print tracebacks |
 | `t0 = half a window` | `spectralFeatures` | Converts frame numbers to the time at the center of the window, so beats line up with the audio |
+| `import yt_dlp` inside functions | `search`, `run_download` | Importing takes seconds. The server has to be listening first, and a hosting service's health check is waiting |
+| Cookie file copied to temp | `ydl_options` | yt-dlp writes back to its cookie file, and hosting services mount secret files read-only |
+| Longer search pause when online | `onQuery` | A small server can't cancel a search once started, so fewer starts is the only protection |

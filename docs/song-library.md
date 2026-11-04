@@ -1,6 +1,8 @@
 # Song library and YouTube search
 
-This part works only when the page is served by `server.py` (start it with `start.bat`). On GitHub Pages, or when you open the HTML file directly, the panel stays hidden.
+This part works only when the page is served by `server.py`, either on your computer (start it with `start.bat`) or online. On GitHub Pages, or when you open the HTML file directly, the panel stays hidden.
+
+This page mainly describes the version on your computer. [online.md](online.md) covers what changes online: a sign-in, and songs kept in the browser instead of `library/`.
 
 > ⚠️ Note: downloading from YouTube may go against YouTube's Terms of Service, and the songs are copyrighted. This feature is for personal practice. `library/` is git-ignored so songs are never published, and it must stay that way.
 
@@ -45,7 +47,8 @@ The server listens on `http://localhost:8766` (`--port` changes this). All respo
 
 | Method | Path | Request | Response |
 |---|---|---|---|
-| GET | `/api/status` | — | `{"ok": true, "downloader": bool, "version": "2026.10.26", "library": "C:\\…\\library"}` |
+| GET | `/api/status` | — | `{"ok": true, "online": bool, "signedIn": bool, "downloader": bool}`, plus `"library": "C:\\…\\library"` when not online. Never needs a sign-in |
+| POST | `/api/login` | `{"password": "…"}` and header `X-Dance-Lab: 1` | `{"ok": true}` and a session cookie. 401 for a wrong password, 429 after too many. Online mode only |
 | GET | `/api/search?q=…` | `q`: words or a YouTube link | `{"results": [{"id", "title", "channel", "duration"}]}`. `duration` (seconds) is `null` for links. Errors: 502 if the search fails, 503 if there's no downloader |
 | POST | `/api/download` | `{"id": "<11-char video id>"}` and header `X-Dance-Lab: 1` | 202 with a job: `{"id", "state", "percent", "error", "song"}` |
 | GET | `/api/jobs?id=…` | — | The job. `state` is `queued`, `downloading`, `done` or `error`; on `done`, `song` is the new library entry |
@@ -53,7 +56,9 @@ The server listens on `http://localhost:8766` (`--port` changes this). All respo
 | GET | `/api/audio?file=…` | `file`: name as in the library | The audio bytes, with the right `Content-Type`. No range requests (the page downloads the whole file into a Blob) |
 | DELETE | `/api/library?file=…` | Header `X-Dance-Lab: 1` | `{"ok": true}` |
 
-Starting a download that is already running returns the existing job instead of starting another.
+Starting a download that is already running returns the existing job instead of starting another. At most two downloads run at once; others wait as `queued`.
+
+In online mode, every path except `/api/status` and `/api/login` returns 401 without a sign-in. `/api/audio` deletes the file after sending it, so it works only once per download.
 
 ## How the server talks to YouTube
 
@@ -65,7 +70,7 @@ Starting a download that is already running returns the existing job instead of 
 
 ## Security
 
-The server is for one person on their own computer. It is still careful about two things:
+On your computer, the server is for one person. It is still careful about two things (online mode adds a password; see [online.md](online.md)):
 
 1. **Other websites.** Any page open in the same browser could send requests to `localhost:8766`.
    - `POST` and `DELETE` require an `X-Dance-Lab: 1` header. A cross-site page can't send a custom header without a CORS preflight, and the server never answers preflights, so it can't download or delete.
@@ -80,9 +85,9 @@ By default it listens on `127.0.0.1` only. `--lan` listens on all interfaces, wh
 
 At startup, `initLibrary()` calls `/api/status` with a 2.5 s timeout (skipped for `file://`).
 
-- **It answers:** the panel shows. If `downloader` is false, the search input is disabled and says to run `update.bat`.
+- **It answers:** the panel shows. If `online` is true and `signedIn` is false, a password form replaces the search bar; songs already saved on the device stay available. If `downloader` is false, the search input is disabled and says to run `update.bat`.
 - **It doesn't answer:** the panel stays hidden. The `#libraryOff` hint appears only when the page is on a local host (`localhost`, `127.x`, private IP ranges or `file:`). The public GitHub Pages site never shows it.
 
 ## Loading a library song
 
-`loadFromLibrary()` fetches `/api/audio`, wraps the bytes in a `File`, and calls the same `loadFile(file, title)` as **Load a song**. A library song goes through exactly the same decoding, analysis and playback as a song picked from disk.
+`loadFromLibrary()` gets the bytes from `L.store` (`/api/audio` on your computer, IndexedDB online), wraps them in a `File`, and calls the same `loadFile(file, title)` as **Load a song**. A library song goes through exactly the same decoding, analysis and playback as a song picked from disk.

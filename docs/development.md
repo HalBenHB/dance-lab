@@ -12,6 +12,15 @@ Then open `http://localhost:8766/wheres-the-one/`. The server sends HTML with `C
 
 For page-only changes, `python -m http.server` from the repo root also works, without the library panel.
 
+To try online mode on your computer, set a password and use another port:
+
+```bash
+set DANCE_LAB_PASSWORD=local-test-only
+.venv\Scripts\python server.py --no-browser --port 8767
+```
+
+Then open `http://localhost:8767/wheres-the-one/`. It uses a temp folder and IndexedDB, not `library/`.
+
 ## Fragile areas
 
 - **Downbeat guess** (`guessDownbeat`). It's the least reliable part, and small weight changes flip songs between beat 1 and beat 3. Test any change against the example groove and at least one real song.
@@ -21,6 +30,8 @@ For page-only changes, `python -m http.server` from the repo root also works, wi
 - **yt-dlp and YouTube.** These break from the outside. Before debugging `server.py`, run `update.bat`, and look at the server console, which prints the raw yt-dlp error.
 - **Download jobs live in memory.** Restarting the server forgets running jobs. The page then shows an error for them, and the file may be half-written in `library/`. yt-dlp leaves `.part` files, which the library ignores.
 - **Threading.** `jobs` and `library.json` writes are protected by `lock`. Keep every write to `library.json` inside `with lock:`.
+- **Two modes.** Song library changes must work with both `diskStore` and `browserStore`. Test on your computer and in online mode.
+- **Background tabs.** The stage, clock and play button update from animation frames, which stop in hidden tabs and hidden test panes. A clock stuck at `0:00` there doesn't mean playback failed: check `audio.currentTime`.
 
 ## Checklist before committing
 
@@ -83,6 +94,9 @@ For an end-to-end download test, use YouTube's first video, "Me at the zoo" (`ht
 
 ## Open questions
 
+- **Does YouTube allow the online server?** Not known until it's deployed. If it doesn't, a proxy or cookies are needed ([online.md](online.md)). The proxy option was only tested against a dead address, and the cookie option with an empty file.
+- **The Docker image hasn't been built.** Docker isn't installed on the development machine, so Render's first build is its first test. Debian's Node version must stay new enough for yt-dlp.
+- **Online mode on a real phone,** including how long iPhones keep songs in IndexedDB.
 - **Remember fixes per song.** Where the 1 is, the tempo and the nudge are lost on reload. `library.json` could store them per file.
 - **Patterns longer than 4 beats.** The Jive basic (6 counts) and many figures span 1½ or 2 bars. Slots would need a cycle length and a phrase offset.
 - **Paso Doble and Jive** aren't in the counter yet. Jive's tempo is likely detected at half speed.

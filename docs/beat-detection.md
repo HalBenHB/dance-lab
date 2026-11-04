@@ -97,6 +97,15 @@ At 22,050 Hz, mono, there's a 0.6 s lead-in, then 16 bars at 124 BPM:
 
 It is the test fixture for detection: expected downbeats are `0.6 + n · 1.935 s`. After the changes above, detection finds them within 8 ms at 124.0 BPM. It's synthesized directly into a `Float32Array`. An earlier version built it from Web Audio nodes and took 15 seconds to render.
 
+## Results on real songs
+
+| Song | Detected | Expected |
+|---|---|---|
+| "Banto (Samba 51)" | 102.0 BPM (51 MPM) | 51 MPM, from its title |
+| "Jesus to a Child" (official video, 4:43) | 86.9 BPM | Not checked against another source |
+
+These confirm tempo only. Where the 1 landed on them hasn't been checked by ear.
+
 ## Known limits
 
 - Assumes 4 beats per group, even for 2/4 Samba, which is shown as two bars.

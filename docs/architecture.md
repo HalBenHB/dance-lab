@@ -16,15 +16,16 @@
  └────────────────────────────────────────────────────┼─────────┘
                        only when served by server.py  │ fetch /api/*
                                                       ▼
-                     server.py (localhost:8766) ─► yt-dlp ─► YouTube
+                     server.py (your computer or online) ─► yt-dlp ─► YouTube
                               │
-                              └─► library/ (m4a files + library.json)
+                              ├─► on your computer: library/ (m4a files + library.json)
+                              └─► online: temp file, passed to the browser, then deleted
 ```
 
 There are two layers:
 
 1. **Static pages.** Each tool is one HTML file with its CSS and JavaScript inline. These pages are the whole product on GitHub Pages. All audio analysis happens in the browser.
-2. **Optional local server.** `server.py` serves the same pages and adds a small JSON API for YouTube search, downloads and the song library. The page detects it and shows the search panel only when it answers.
+2. **Optional server.** `server.py` serves the same pages and adds a small JSON API for YouTube search, downloads and the song library. The page detects it and shows the search panel only when it answers. It runs on your computer, or online with a password (see [online.md](online.md)).
 
 ## File map
 
@@ -35,6 +36,8 @@ There are two layers:
 | `server.py` | Python HTTP server: static files, `/api/*`, download jobs, library index |
 | `start.bat` | Windows launcher. Creates `.venv` and installs requirements on the first run, then starts `server.py` |
 | `update.bat` | Upgrades yt-dlp inside `.venv` |
+| `Dockerfile`, `.dockerignore` | The online image: Python, Node, ffmpeg, yt-dlp, `server.py` and the pages. Sets `DANCE_LAB_HOSTED=1` |
+| `render.yaml` | Render Blueprint: a free Docker web service that asks for `DANCE_LAB_PASSWORD` |
 | `requirements.txt` | `yt-dlp[default]`, unpinned on purpose (see [decisions.md](decisions.md)) |
 | `library/` | Downloaded songs plus `library.json`. Created on demand and git-ignored |
 | `.venv/` | Private Python environment. Git-ignored |
@@ -91,7 +94,7 @@ There are two layers:
 | `rate`, `loop`, `zoom`, `taps` | Speed, loop window, timeline zoom, tap-tempo times |
 | `shown`, `dirty` | Render bookkeeping: index of the event on screen, and whether to redraw |
 
-`L` (song library) holds search results, saved songs, download jobs, the loaded library file, and search timers.
+`L` (song library) holds search results, saved songs, download jobs, the loaded library file, and search timers. `L.online` says whether the server is in online mode, and `L.store` is where songs live: `diskStore` (the server's `library/`) or `browserStore` (IndexedDB database `dance-lab`, store `songs`). Library code goes through `L.store` and doesn't care which one it has.
 
 Saved per browser in `localStorage`, with keys prefixed `wto:`: `dance`, `click`, `offset` and `zoom`. Nothing else persists in the page.
 
@@ -126,6 +129,8 @@ File or Blob ─► decodeAudioData (22,050 Hz)
 - **Search** runs yt-dlp in flat mode (`ytsearch12:`). Pasted links use YouTube's oEmbed endpoint, which is much faster. Results are cached for 10 minutes.
 - **Downloads** run in a background thread per video id, tracked in `jobs`. The page polls `/api/jobs`.
 - **Library index:** `library/library.json` is rewritten atomically (temp file, then rename) under a lock. `scan_library()` also lists audio files that were copied into `library/` by hand.
+- **yt-dlp loads in the background.** Importing it takes seconds, so the server starts listening first and uses `find_spec` to report whether it's installed.
+- **Online mode** turns on when `DANCE_LAB_PASSWORD` is set. API calls then need a signed session cookie, songs go to a temp folder, and each is deleted once it has been sent. Details are in [online.md](online.md).
 
 API details are in [song-library.md](song-library.md).
 
@@ -141,6 +146,9 @@ There are almost no classes. The structure comes from a few deliberate patterns:
 
 > **One interface, two playback engines** in `player`
 > The rest of the page calls `player.*` and never touches `<audio>` or Web Audio directly. Keep it that way, or the fallback mode silently breaks.
+
+> **One interface, two song stores** in `L.store`
+> `diskStore` and `browserStore` both offer `list`, `blob` and `remove`. Only the online branch of `download()` knows about the difference, because it has to move the song into the browser. Don't call `/api/library` directly from other code, or online mode breaks.
 
 > **Dirty-flag rendering** via `S.dirty` and `S.shown`
 > The stage DOM is touched only when the displayed event changes, and the canvases redraw only when playing or dirty. Any code that changes what's on screen while paused must call `markDirty()`, and set `S.shown = -2` if the big count should refresh.
