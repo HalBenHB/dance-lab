@@ -58,6 +58,8 @@ PRIVATE_DIRS = {".git", ".venv", ".claude", "__pycache__", "library"}
 VIDEO_ID = re.compile(r"^[\w-]{11}$")
 LINK_ID = re.compile(r"(?:[?&]v=|youtu\.be/|/shorts/|/embed/|/live/)([\w-]{11})")
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
+# A blocked server may only be offered combined video files such as format 18, so accept them too.
+AUDIO_FORMAT = "bestaudio[ext=m4a]/bestaudio/best"
 BLOCKED = re.compile(r"Sign in to confirm|not a bot|IP is likely being blocked|HTTP Error (403|429)")
 
 lock = threading.Lock()
@@ -98,6 +100,13 @@ def ydl_options(**extra) -> dict:
             shutil.copyfile(YT_COOKIES_FILE, copy)
         opts["cookiefile"] = str(copy)
     opts.update(extra)
+    return opts
+
+
+def audio_options() -> dict:
+    opts = {"format": AUDIO_FORMAT}
+    if shutil.which("ffmpeg"):  # keeps the audio of a combined file as it is and drops the video
+        opts["postprocessors"] = [{"key": "FFmpegExtractAudio", "preferredcodec": "best"}]
     return opts
 
 
@@ -217,11 +226,11 @@ def run_download(job: dict) -> None:
     LIBRARY.mkdir(exist_ok=True)
     log = YdlLog()
     opts = ydl_options(
-        format="bestaudio[ext=m4a]/bestaudio",
         outtmpl=str(LIBRARY / "%(title).90B [%(id)s].%(ext)s"),
         windowsfilenames=True,
         progress_hooks=[progress],
         logger=log,
+        **audio_options(),
     )
     try:
         with download_slots:
@@ -244,6 +253,8 @@ def run_download(job: dict) -> None:
         if BLOCKED.search(text) or BLOCKED.search(details):
             message = ("YouTube is blocking this online server. It needs a proxy or cookies: see docs/online.md."
                        if ONLINE else "YouTube wants to check you're not a bot. Wait a few minutes and try again.")
+        elif "Requested format is not available" in text or "No video formats found" in text:
+            message = "YouTube isn't offering this video to the server. Try another upload of the song."
         elif "Private video" in text or "unavailable" in text.lower():
             message = "This video is private or not available in your country."
         else:
@@ -257,7 +268,7 @@ def run_download(job: dict) -> None:
 
 # TEMPORARY: lets us see from outside how YouTube treats this server. Remove once online downloads work.
 youtube_check: dict = {"state": "not run"}
-CHECK_CLIENTS = (None, "tv", "tv_downgraded", "web_safari", "web", "mweb", "web_creator")
+CHECK_VIDEOS = {"clip": "jNQXAC9IVRw", "song": "xeMOO5EudYs"}
 
 
 def check_summary(text: str) -> str:
@@ -269,10 +280,10 @@ def check_summary(text: str) -> str:
 
 def check_youtube() -> None:
     import urllib.request
-    video = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+    page = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
     youtube_check.update(state="running", page=None, clients={})
     try:
-        request = urllib.request.Request(video, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 Safari/537.36"})
+        request = urllib.request.Request(page, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 Safari/537.36"})
         with urlopen(request, timeout=20) as r:
             html = r.read().decode("utf-8", "replace")
             youtube_check["page"] = {"status": r.status, "bytes": len(html), "playerData": "ytInitialPlayerResponse" in html,
@@ -281,28 +292,19 @@ def check_youtube() -> None:
         youtube_check["page"] = check_summary(str(err))
     import yt_dlp
     folder = Path(tempfile.mkdtemp())
-    for client in CHECK_CLIENTS:
+    for name, video_id in CHECK_VIDEOS.items():
         log = YdlLog()
-        extra = {"extractor_args": {"youtube": {"player_client": [client]}}} if client else {}
-        opts = ydl_options(format="bestaudio[ext=m4a]/bestaudio", outtmpl=str(folder / f"{client}.%(ext)s"), logger=log, **extra)
-        name = client or "default"
+        opts = ydl_options(outtmpl=str(folder / "%(id)s.%(ext)s"), logger=log, **audio_options())
+        started = time.time()
         try:
             with download_slots, yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(video, download=True)
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=True)
             path = Path(info["requested_downloads"][0]["filepath"])
-            youtube_check["clients"][name] = f"OK: format {info.get('format_id')}, {path.stat().st_size} bytes"
+            youtube_check["clients"][name] = f"OK: format {info.get('format_id')}, {path.suffix}, {path.stat().st_size} bytes, {time.time() - started:.0f}s"
             path.unlink(missing_ok=True)
         except Exception as err:
             warnings = [re.sub(r"https?://\S+", "<url>", w)[:220] for w in dict.fromkeys(log.warnings)]
-            try:
-                with yt_dlp.YoutubeDL(ydl_options(logger=YdlLog(), **extra)) as ydl:
-                    probe = ydl.extract_info(video, download=False, process=False)
-                formats = probe.get("formats") or []
-                audio = [f for f in formats if f.get("vcodec") in (None, "none") and f.get("acodec") not in (None, "none")]
-                found = f"{len(formats)} formats, {len(audio)} audio: {sorted({str(f.get('format_id')) for f in formats})[:12]}"
-            except Exception as probe_err:
-                found = "probe failed: " + check_summary(str(probe_err))
-            youtube_check["clients"][name] = {"error": check_summary(str(err)), "warnings": warnings[:6], "found": found}
+            youtube_check["clients"][name] = {"error": check_summary(str(err)), "warnings": warnings[:6]}
         print(f"YouTube check, {name}: {youtube_check['clients'][name]}")
     youtube_check["state"] = "done"
 
