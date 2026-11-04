@@ -281,7 +281,7 @@ def run_download(job: dict) -> None:
 
 # TEMPORARY: lets us see from outside how YouTube treats this server. Remove once online downloads work.
 youtube_check: dict = {"state": "not run"}
-CHECK_VIDEOS = {"song1": "xeMOO5EudYs", "song2": "zNBj4EV_hAo"}
+CHECK_VIDEOS = {"clip": "jNQXAC9IVRw", "song": "zNBj4EV_hAo"}  # only the clip is downloaded
 
 
 def check_summary(text: str) -> str:
@@ -300,6 +300,12 @@ def check_youtube() -> None:
         opts = ydl_options(outtmpl=str(folder / "%(id)s.%(ext)s"), logger=log, **audio_options())
         started = time.time()
         try:
+            if name == "song":
+                import yt_dlp
+                with download_slots, yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                youtube_check["clients"][name] = f"OK, found: format {info.get('format_id')}, {time.time() - started:.0f}s"
+                continue
             info = fetch_audio(video_id, opts, log)
             path = Path(info["requested_downloads"][0]["filepath"])
             youtube_check["clients"][name] = f"OK: format {info.get('format_id')}, {path.suffix}, {path.stat().st_size} bytes, {time.time() - started:.0f}s"
