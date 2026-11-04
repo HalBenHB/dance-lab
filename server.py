@@ -257,7 +257,7 @@ def run_download(job: dict) -> None:
 
 # TEMPORARY: lets us see from outside how YouTube treats this server. Remove once online downloads work.
 youtube_check: dict = {"state": "not run"}
-CHECK_CLIENTS = (None,)  # runs on every wake-up, so keep it to one request type
+CHECK_CLIENTS = (None, "tv", "tv_downgraded", "web_safari", "web", "mweb", "web_creator")
 
 
 def check_summary(text: str) -> str:
@@ -293,8 +293,16 @@ def check_youtube() -> None:
             youtube_check["clients"][name] = f"OK: format {info.get('format_id')}, {path.stat().st_size} bytes"
             path.unlink(missing_ok=True)
         except Exception as err:
-            reasons = sorted({check_summary(w) for w in log.warnings} | {check_summary(str(err))})
-            youtube_check["clients"][name] = " | ".join(reasons)[:400]
+            warnings = [re.sub(r"https?://\S+", "<url>", w)[:220] for w in dict.fromkeys(log.warnings)]
+            try:
+                with yt_dlp.YoutubeDL(ydl_options(logger=YdlLog(), **extra)) as ydl:
+                    probe = ydl.extract_info(video, download=False, process=False)
+                formats = probe.get("formats") or []
+                audio = [f for f in formats if f.get("vcodec") in (None, "none") and f.get("acodec") not in (None, "none")]
+                found = f"{len(formats)} formats, {len(audio)} audio: {sorted({str(f.get('format_id')) for f in formats})[:12]}"
+            except Exception as probe_err:
+                found = "probe failed: " + check_summary(str(probe_err))
+            youtube_check["clients"][name] = {"error": check_summary(str(err)), "warnings": warnings[:6], "found": found}
         print(f"YouTube check, {name}: {youtube_check['clients'][name]}")
     youtube_check["state"] = "done"
 
