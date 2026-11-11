@@ -2,6 +2,21 @@
 
 Newest first. Each entry says what changed and why. Anything under **Removed** must not come back without the owner asking for it.
 
+## 2026-11-11, version 1.0: The dance sets the speed, and titles suggest a dance
+
+The owner danced "Hit the Road Jack" as Jive, which it is, and had to press **Double tempo**.
+
+**Added**
+
+- A version number at the bottom of both pages, so the owner can see on the website when a publish has arrived. This is version 1.0; each publish raises it. See [development.md](development.md).
+
+- Picking a dance counts the song at the speed that dance is danced to: as detected, doubled or halved. A line under the tempo says when it was doubled or halved and which button goes back. See [beat-detection.md](beat-detection.md), step 10.
+- When a song's title names a dance whose tempo fits the song, a button offers it, for example "The title says Samba at 51 bars per minute. **Count it as Samba**". A tempo in the title also settles the speed. Titles naming two fitting dances offer both.
+
+**Direction**
+
+- Suggest a dance from the sound once there are about five songs per dance whose dance is known. Tagging songs by dance would give that test set.
+
 ## 2026-11-05: The owner's counts, tags, and beats that follow the bass
 
 **Fixed**

@@ -82,8 +82,9 @@ For an end-to-end download test, use YouTube's first video, "Me at the zoo" (`ht
 `main` is the live version. Pushing to it updates GitHub Pages in about a minute and Render in about 2–3 minutes, with no other step. Work on a branch isn't live until it's merged into `main` and pushed.
 
 1. Run the checklist above.
-2. Merge into `main` and push.
-3. Open `https://dance-lab.onrender.com/api/status` and check that `commit` matches `git rev-parse --short HEAD`.
+2. Raise the version. It's at the bottom of `index.html` and `wheres-the-one/index.html` (`id="version"`), and both must say the same: the next number (1.0, 1.1, 1.2…) and the day you publish. Put the same version in the new [changelog](changelog.md) heading.
+3. Merge into `main` and push.
+4. Check that it arrived. `https://dance-lab.onrender.com/api/status` should report a `commit` matching `git rev-parse --short HEAD`, and both sites should show the new version at the bottom of the page. The owner checks the version on the website. GitHub Pages lets browsers keep a page for up to 10 minutes (`Cache-Control: max-age=600`), so a reload may be needed there. Render's pages are never kept.
 
 ## Adding a new tool
 
@@ -111,7 +112,8 @@ For an end-to-end download test, use YouTube's first video, "Me at the zoo" (`ht
 - **Remember fixes per song.** Where the 1 is, the tempo and the nudge are lost on reload. `library.json` could store them per file.
 - **Paso Doble** isn't in the counter yet.
 - **Where to keep songs online.** The owner wants songs kept on the host. `DANCE_LAB_DATA` is ready for a paid Render disk, about $7.25 a month. A free cloud storage bucket is the other choice, and would need more code. See [online.md](online.md#keeping-songs-on-the-host).
-- **Jive and Bachata on real songs.** "Hit the Road Jack" is the only real song checked for them, and it isn't a bachata. How often real jive reads at half tempo, how well the 1 is found on real bachata, and whether a pushed bass throws off its tempo as it did on a synthesized groove (see [beat-detection.md](beat-detection.md)), aren't known.
+- **Jive and Bachata on real songs.** "Hit the Road Jack", a jive song, is the only real song checked for them. How well the 1 is found on real bachata, and whether a pushed bass throws off its tempo as it did on a synthesized groove (see [beat-detection.md](beat-detection.md)), aren't known.
+- **Suggesting a dance from the sound.** Today only the title suggests a dance. Tempo narrows it down: Jive is the only fast one, Rumba and Samba sit around 100 BPM, and Cha-cha, Bachata and Paso Doble around 120–128. Rhythm cues would have to decide the rest: swing for Jive, busy a's and a heavy 2 for Samba, the 4-&-1 for Cha-cha, the guira for Bachata. Building it needs about five songs per dance whose dance is known; tagging them with the dance gives that test set. It should offer a dance only when one clearly wins.
 - **Bar › while paused.** Each jump lands 30 ms before the 1, so the next press finds the same bar and the song stays put. It works while playing, and ‹ Bar isn't affected. `seekBar` needs to look from just after where it landed.
 - **Timeline dragging on a real phone.** Touch was tested with simulated touch events and the phone-width view, not a real iPhone or Android. Check that a tap starts audio, that a sideways drag moves the song, and that an up-and-down swipe scrolls the page.
 - **Few patterns per dance.** Many figures in every dance run on other counts. Each new pattern would be a new `DANCES` entry with a `group`, like the Samba and Jive timings. The cues on Jive's 7 and 8 just say Step, because the steps there depend on the figure.

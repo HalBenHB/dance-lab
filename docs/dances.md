@@ -17,11 +17,12 @@ chacha: { name: 'Cha-cha', counting: '2, 3, 4-&-1', mpm: [30, 32], slots: [
 |---|---|
 | `name` | Shown in the tempo-fit sentence |
 | `counting` | Shown as "Count it as …" |
-| `mpm` | Competition tempo `[min, max]` in bars per minute, or `null` |
+| `mpm` | Competition tempo `[min, max]` in bars per minute, or `null`. Also decides whether a song is counted at its detected speed, double or half (see below) |
 | `barBeats` | Beats per musical bar for MPM. Leave it out for 4; Samba uses 2 |
 | `cycle` | Length of the pattern in beats, when it doesn't fit the 4-beat group. Leave it out for 4; Jive uses 6 and Bachata 8 |
 | `group` | Which dance this is another way of counting: the key of that dance's main entry. Leave it out on the main entry, which is the default |
 | `timing` | Text in the **Timing** select. Leave it out to use `counting` |
+| `inTitle` | A pattern that finds the dance's name in a song title, such as `/\bsamba\b/i`, so the page can offer the dance. Main entries only |
 | `slots` | The moments in each 4-beat group (or cycle), in the order the dancer counts them |
 
 Each slot:
@@ -83,6 +84,13 @@ The 8-count patterns, Bachata and Jive with 7 8, fit two bars exactly, so the mu
 - **Loops:** the 6-count Jive repeats without a break only on a 3-bar loop. The 8-count patterns repeat on 2, 4 or 8 bars. Every other loop length restarts the pattern mid-way.
 - **Bars don't change.** Bar numbers, the 8-bar dots, loops and bar seeking still use `% 4`. Only the placing of slots in `rebuildEvents` uses the cycle.
 
+## The dance sets the speed, and the title can suggest a dance
+
+- **Speed:** a song can usually be counted at two speeds, one twice the other. When you pick a dance, the page counts the song at whichever speed fits that dance's tempo, and says so under the tempo if it doubled or halved it. "Hit the Road Jack" is 86.8 BPM on Bachata and 173.6 on Jive. See [beat-detection.md](beat-detection.md), step 10.
+- **Suggestions:** if the song's title names a dance other than the one chosen, and the song's tempo fits that dance, a line under the tempo offers it: "The title says Samba at 51 bars per minute. **Count it as Samba**". A tempo in the title also settles the speed. See step 11.
+
+Neither looks at the sound beyond the tempo, so they can't tell Cha-cha from Bachata at the same speed. Suggesting a dance from the sound is an open question in [development.md](development.md).
+
 ## Counts and tempos
 
 These match the reference table on the home page.
@@ -123,4 +131,4 @@ Example: Paso Doble, which marches one step per beat. Its music is in 2/4, so it
 
 You don't need any drawing or click code. For a pattern that doesn't fit 4 beats, add `cycle` and number `c` through the cycle; see `jive`. To add another way of counting a dance, add an entry with `group` set to that dance's key; it appears under **Timing** with no other code. Keep cues short: at phone width, a slot box with 8 slots is about 31 px wide, and "Replace" didn't fit. Patterns with more than 8 slots wrap to rows of 5 at phone width.
 
-> ⚠️ Note: the tempo prior centers on 110 BPM, so a fast song can be detected at half tempo. A synthesized jive groove at 172 BPM read as 86. When a song reads about half of the chosen dance's range, the tempo-fit sentence says to press **Double tempo**, which gave 172.0 BPM on that groove.
+> ⚠️ Note: a new dance's `mpm` also decides when a song is counted at double or half speed for it, and its widened range must stay under an octave wide, so that only one reading fits. All the built-in dances are well under it. To have the page offer the dance from song titles, add `inTitle`.

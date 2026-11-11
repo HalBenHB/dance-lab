@@ -81,6 +81,7 @@ td .dance { font-weight: 700; }
 .no { color: var(--muted); }
 .note { font-size: .85rem; color: var(--muted); }
 footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 14px; }
+footer .version { margin-top: 8px; font-family: var(--font-mono); font-size: .8rem; }
 
 @media (max-width: 600px) {
   .tool { grid-template-columns: auto minmax(0, 1fr); }
@@ -129,7 +130,10 @@ footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--lin
     <p class="note">Tempos follow WDSF competition rules, except Bachata, which follows IDO rules. Social and show routines often use other speeds: usually slower, but many Bachata songs run faster.</p>
   </section>
 
-  <footer>Everything runs in your browser. Songs you load stay on your device and are never uploaded.</footer>
+  <footer>
+    <p>Everything runs in your browser. Songs you load stay on your device and are never uploaded.</p>
+    <p class="version" id="version">Version 1.0 · 11 November 2026</p>
+  </footer>
 </div>
 </body>
 </html>

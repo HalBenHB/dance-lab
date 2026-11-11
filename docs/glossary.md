@@ -42,6 +42,7 @@ Use these terms exactly, in code, docs and messages.
 | **song library** | Saved songs plus YouTube search, served by the local server | `#library`, `library/` |
 | **Your songs** | The saved-songs list in the library panel | `#songs` |
 | **tag** | A label you give a song. A song can have several, and picking one shows only its songs | `song.tags`, `#tagFilter` |
+| **suggestion** | A dance the song's title names, offered as a button when the song's tempo fits it | `#suggest`, `S.titleHints` |
 | **local server** | `server.py` on your own computer, started by `start.bat` | — |
 | **online mode** | `server.py` with `DANCE_LAB_PASSWORD` set: sign-in required, songs kept in the browser unless `DANCE_LAB_DATA` is set | `ONLINE`, `L.online`, [online.md](online.md) |
 | **hosted** | Running in the Docker image on a hosting service (`DANCE_LAB_HOSTED`). Hosted always means online mode, but online mode can also be tried locally | `main()` in `server.py` |

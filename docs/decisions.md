@@ -95,6 +95,26 @@ Each decision lists what was done, why, what else was considered, and what chang
 - **Why:** the owner asked for playlists or tags. Dancers practice one song at a time, and one song often belongs in several groups, such as "Bachata" and "Monday class", which tags handle with far less to build.
 - **Alternatives considered:** ordered playlists, which need their own screen for reordering, and playing the next song automatically. Add them if the owner wants a running order.
 
+## The dance you pick decides half or double tempo
+
+- **What:** `fitTempoToDance` counts the song at its detected speed, doubled or halved, whichever fits the chosen dance, and says so under the tempo. It runs when a song loads, when you pick a dance, and on **Detect again**, but not after **Half tempo**, **Double tempo** or **Tap along**.
+- **Why:** the owner danced "Hit the Road Jack" as Jive and had to press **Double tempo**. Half and double are both honest readings of a beat, and the detector can't know which you dance to. The dance you picked can.
+- **Alternatives considered:** a different tempo prior per dance, which would still miss songs near the edge of the range; only showing a button, which is what the old "press Double tempo" sentence already did.
+- **Do not change because:** applying it after the manual tempo buttons would undo what the dancer just chose.
+
+## Dance suggestions come from the title, not yet from the sound
+
+- **What:** a dance named in the song's title is offered as a button, and only if the song's tempo fits that dance. A tempo in the title also settles half or double.
+- **Why:** practice uploads often name the dance and tempo ("Banto (Samba 51)"), which is close to certain. Telling dances apart by sound needs rhythm features tuned on songs whose dance is known, and the four saved songs aren't enough.
+- **Do not change because:** dropping the tempo check would offer Jive for "Jive Talkin'". Offering instead of switching keeps the dance under your control.
+
+## A version number, raised by hand on every publish
+
+- **What:** the bottom of both pages says "Version 1.0 · 11 November 2026". Each publish raises the number and the date (see [development.md](development.md)).
+- **Why:** the owner checks the website to see whether a change has gone live. GitHub Pages has no server and no build step, so the page can't know which commit it came from by itself.
+- **Alternatives considered:** fetching the newest commit from GitHub, which says what's on GitHub, not what the browser loaded; a shared `version.js`, one more file for one line of text.
+- **Do not change because:** the version is only useful if every publish raises it. If it's forgotten, the site looks unchanged after a publish.
+
 ## The server is optional, and the page detects it
 
 - **What:** the song library panel appears only when `/api/status` answers.

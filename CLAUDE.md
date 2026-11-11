@@ -14,8 +14,8 @@ Pushing to `main` is the whole deploy. Nothing else needs doing:
 Work that isn't on `main` isn't live, so a finished change isn't done until the owner has decided about publishing:
 
 1. When a change is finished, say it isn't live yet and offer to publish it. Commit and push only when the owner says so.
-2. To publish, run the checklist in [docs/development.md](docs/development.md), merge any branch into `main`, and push.
-3. Confirm it arrived. `https://dance-lab.onrender.com/api/status` reports the deployed `commit`, which should match `git rev-parse --short HEAD`. The first request can take a minute while the server wakes.
+2. To publish, run the checklist in [docs/development.md](docs/development.md), raise the version at the bottom of both pages, merge any branch into `main`, and push.
+3. Confirm it arrived. `https://dance-lab.onrender.com/api/status` reports the deployed `commit`, which should match `git rev-parse --short HEAD`. The first request can take a minute while the server wakes. Then check that both sites show the new version, which is how the owner checks.
 
 ## Working alongside other sessions
 

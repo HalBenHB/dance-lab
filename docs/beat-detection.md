@@ -93,6 +93,21 @@ This is the weakest step. Songs where 1 and 3 sound alike, samba with the surdo 
 - `S.ibi` = (last beat − first beat) / (number of beats − 1). This is the mean, not the median: the median is rounded to whole frames (11.6 ms) and showed 123.0 instead of 124.0 BPM on the example.
 - BPM = 60 / `ibi`. MPM = BPM / `barBeats` (4, or 2 for Samba).
 
+### 10. Counting at the dance's speed (`fitTempoToDance`)
+
+A steady beat at 87 BPM is also every other beat at 174, so a song can honestly be counted at either speed, and the 110 BPM prior picks whichever is nearer. Once the dance is known, its tempo decides:
+
+- `tempoFit` tries the tempo as detected, doubled and halved, and keeps the first that falls inside the dance's competition range in bars per minute, widened to 0.75 × the lowest and 1.1 × the highest for social and show music. Each widened range is less than an octave wide, so at most one reading fits.
+- If that reading is doubled or halved, the page runs `retrack()` at that speed and says so under the tempo: "It was detected at 86.8 BPM and is counted twice as fast. Half tempo goes back." The note compares with `S.periodAuto`, so it disappears once the song is back at its detected speed.
+- It runs when a song loads, when you pick a dance or a timing, and on **Detect again**. **Half tempo**, **Double tempo** and **Tap along** are left as you set them.
+- If the song's title gives a tempo for the chosen dance (below), the reading within 10% of it wins over the range.
+
+"Hit the Road Jack" reads 86.8 BPM. With Jive chosen it's counted at 173.6, or 43.4 bars per minute. Choose Bachata and it goes back to 86.8.
+
+### 11. Dances named in the title (`titleDances`)
+
+Practice uploads often name the dance, and sometimes the tempo: "Banto (Samba 51)", "Bachata 128 BPM". Each dance's `inTitle` pattern finds its name. A 2- or 3-digit number that fits the dance's range counts as bars per minute; failing that, divided by `barBeats`, as beats per minute. A named dance is offered only if the song's tempo, or half or double it, fits that dance. That keeps "Jive Talkin'", a disco song at about 105 BPM, from being offered as Jive. When the title names more than one dance that fits, each gets a button.
+
 ## Fix the count tools
 
 All of these edit `S.beats`, `S.k` or `S.offset`, then rebuild events.
@@ -105,7 +120,7 @@ All of these edit `S.beats`, `S.k` or `S.offset`, then rebuild events.
 | **Shift half a beat** (`shiftHalf`) | Replaces beats with the midpoints between them, then guesses the 1 again |
 | **Tap along** (`tap`, `useTaps`, key `T`) | Needs at least 6 taps; a pause over 2 s starts over. The median tap interval becomes `P` for `retrack()`. If the new beats sit more than a quarter beat away from the taps, it also shifts by half a beat |
 | **Sync nudge** (`#offset`) | ±300 ms added to every beat when drawing and clicking. Saved per browser |
-| **Detect again** | `retrack(S.periodAuto)` |
+| **Detect again** | `retrack(S.periodAuto)`, then `fitTempoToDance()` |
 
 `retrack()` always guesses the 1 again and clears any loop.
 
@@ -128,14 +143,14 @@ It is the test fixture for detection: expected downbeats are `0.6 + n · 1.935 s
 | "Banto (Samba 51)" | 102.0 BPM (51 MPM) | 51 MPM, from its title |
 | "Jesus to a Child" (official video, 4:43) | 86.9 BPM | Not checked against another source |
 | "Sway" (Michael Bublé, lyric video) | 126.3 BPM | Not checked against another source |
-| "Hit the Road Jack" (Ray Charles, lyrics video) | 86.8 BPM, or 173.6 with **Double tempo** | The 1 on G#, the start of the bass line G#, F#, E, D#, in 41 of 41 bars. With **Double tempo**, on G# and E |
+| "Hit the Road Jack" (Ray Charles, lyrics video) | 86.8 BPM; 173.6 with Jive chosen | A jive song, as the owner pointed out. The 1 on G#, the start of the bass line G#, F#, E, D#, in 41 of 41 bars. At 173.6, on G# and E |
 
 The first three confirm tempo only. Where the 1 landed on them hasn't been checked by ear. "Hit the Road Jack" was checked by reading the bass note on each beat, not by ear. No real Bachata song has been tested yet.
 
 ## Known limits
 
 - Assumes 4 beats per group, even for 2/4 Samba, which is shown as two bars.
-- Fast dances can read at half tempo, because the prior centers on 110 BPM and a backbeat repeats every 2 beats. A synthesized jive groove at 172 BPM read as 86. The tempo-fit sentence then suggests **Double tempo**, which fixed it there.
+- Fast dances can read at half tempo, because the prior centers on 110 BPM and a backbeat repeats every 2 beats. A synthesized jive groove at 172 BPM read as 86. Choosing the dance fixes that (step 10). With **Just count** there's no dance to go by, so the reading stays as detected.
 - A strongly pushed bass can fool the tempo. A synthesized bachata groove at 125 BPM, with the bass on 1, 2&, 3 and 4&, read as 83: two-thirds of the real tempo. How often this happens on real bachata isn't known. **Tap along** is the tool to try when it does.
 - No time-signature detection. Waltz and other 3/4 music will be counted wrong.
 - Songs with big tempo changes or rubato intros drift; tap along helps.

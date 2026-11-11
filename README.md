@@ -44,6 +44,8 @@ Songs you fetch this way are saved in the browser on that device. To keep them o
 
 Press **1** on your keyboard (or the **This is the 1** button) at the moment you hear the one. More fixes are under **Fix the count** on the page. To count a dance another way, such as Bachata as 1, 2, 3, tap or Jive with 7 8, use the **Timing** menu next to the dances.
 
+Picking your dance also sets the speed. Many songs can be counted at two speeds, one twice the other, so the page uses the one that suits the dance: "Hit the Road Jack" counts at 173.6 BPM for Jive and 86.8 for Bachata. If a song's title names a dance, such as "Banto (Samba 51)", the page offers it with a button.
+
 ## What's in this repo
 
 | File or folder | What it does |
@@ -62,5 +64,7 @@ Press **1** on your keyboard (or the **This is the 1** button) at the moment you
 ## Updating the websites
 
 Pushing to `main` updates both websites automatically: GitHub Pages in about a minute and the online version in about 2–3 minutes. Work on another branch isn't live until it's merged into `main`.
+
+The bottom of each page shows its version, such as "Version 1.0 · 11 November 2026", so you can see when a new one has arrived. If GitHub Pages still shows the old one, reload the page: browsers may keep it for up to 10 minutes.
 
 Want to know how it works or change something? Start at [docs/README.md](docs/README.md).

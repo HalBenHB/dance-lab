@@ -95,6 +95,7 @@ kbd {
 .stats dt { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 .stats dd { margin: 0; font-family: var(--font-mono); font-weight: 500; font-variant-numeric: tabular-nums; }
 .fit { flex: 1 1 100%; color: var(--muted); font-size: .9rem; }
+.suggest { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: .9rem; }
 .progress { flex: 1 1 100%; display: flex; align-items: center; gap: 12px; font-size: .88rem; color: var(--muted); }
 .progress .track { flex: 0 0 160px; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .progress .fill { height: 100%; width: 0; background: var(--one); transition: width .2s; }
@@ -187,6 +188,7 @@ kbd {
 .card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: .9rem; display: flex; flex-direction: column; gap: 4px; }
 .keys { display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--muted); font-size: .88rem; }
 footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 14px; }
+footer .version { margin-top: 8px; font-family: var(--font-mono); font-size: .8rem; }
 
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px));
@@ -317,6 +319,7 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
       <div><dt>Length</dt><dd id="len">–</dd></div>
     </dl>
     <p class="fit" id="fit"></p>
+    <p class="suggest" id="suggest" hidden></p>
     <div class="progress" id="progress" hidden><div class="track"><div class="fill" id="progressFill"></div></div><span id="progressText"></span></div>
   </section>
 
@@ -473,7 +476,10 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
     <span><kbd>←</kbd> <kbd>→</kbd> Previous / next bar</span>
     <span><kbd>[</kbd> <kbd>]</kbd> Move the 1</span>
   </div>
-  <footer>Your song stays on your device: it is analyzed in this page and never uploaded. MP3, M4A, WAV, OGG and FLAC work. YouTube and Spotify links can't be opened here, so use an audio file. You can also drop a file anywhere on the page.</footer>
+  <footer>
+    <p>Your song stays on your device: it is analyzed in this page and never uploaded. MP3, M4A, WAV, OGG and FLAC work. YouTube and Spotify links can't be opened here, so use an audio file. You can also drop a file anywhere on the page.</p>
+    <p class="version" id="version">Version 1.0 · 11 November 2026</p>
+  </footer>
 </div>
 <audio id="audio" preload="auto"></audio>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
@@ -502,25 +508,26 @@ const JIVE_BASIC = [
 // Each slot is one moment in the bar: count c (1-4), optional fraction f of a beat after it.
 // A dance with a cycle longer than the bar counts c through its own cycle (1 to cycle) instead.
 // An entry with a group is another way of counting that dance, listed under Timing. The group's own entry is the default.
+// inTitle finds the dance's name in a song title, to suggest it.
 const DANCES = {
   count: { name: 'Just count', counting: '1, 2, 3, 4', mpm: null, slots: [
     { c: 1, label: '1', cue: 'One', click: true },
     { c: 2, label: '2', cue: 'Two', click: true },
     { c: 3, label: '3', cue: 'Three', click: true },
     { c: 4, label: '4', cue: 'Four', click: true }] },
-  rumba: { name: 'Rumba', counting: '2, 3, 4-1', mpm: [25, 27], slots: [
+  rumba: { name: 'Rumba', inTitle: /\brh?umba\b/i, counting: '2, 3, 4-1', mpm: [25, 27], slots: [
     { c: 2, label: '2', cue: 'Quick', click: true, step: true },
     { c: 3, label: '3', cue: 'Quick', click: true, step: true },
     { c: 4, label: '4', cue: 'Slow', click: true, step: true, link: true },
     { c: 1, label: '1', cue: 'Hips settle', hold: true }] },
-  chacha: { name: 'Cha-cha', counting: '2, 3, 4-&-1', mpm: [30, 32], slots: [
+  chacha: { name: 'Cha-cha', inTitle: /\bcha[\s-]?cha/i, counting: '2, 3, 4-&-1', mpm: [30, 32], slots: [
     { c: 2, label: '2', cue: 'Step', click: true, step: true },
     { c: 3, label: '3', cue: 'Step', click: true, step: true },
     { c: 4, label: '4', cue: 'Cha', click: true, step: true, link: true },
     { c: 4, f: 0.5, label: '&', cue: 'Cha', click: true, step: true, link: true },
     { c: 1, label: '1', cue: 'Cha', click: true, step: true }] },
   // Samba music is in 2/4 (barBeats: 2); the "a" falls a quarter beat before the next count.
-  samba: { name: 'Samba', timing: '1 a 2: basic, whisks, walks', counting: '1 a 2, 3 a 4', mpm: [50, 52], barBeats: 2, slots: [
+  samba: { name: 'Samba', inTitle: /\bsamba\b/i, timing: '1 a 2: basic, whisks, walks', counting: '1 a 2, 3 a 4', mpm: [50, 52], barBeats: 2, slots: [
     { c: 1, label: '1', cue: 'Step', click: true, step: true, link: true },
     { c: 1, f: 0.75, label: 'a', cue: 'Ball', click: true, step: true, link: true },
     { c: 2, label: '2', cue: 'Step', click: true, step: true },
@@ -536,7 +543,7 @@ const DANCES = {
     { c: 3, f: 0.75, label: 'a', cue: 'Side', click: true, step: true, link: true },
     { c: 4, label: '4', cue: 'Cross', click: true, step: true }] },
   // The basic takes 6 beats and bars have 4, so it starts on the music's 1 only every other time.
-  jive: { name: 'Jive', counting: '1 2 3 a 4 5 a 6', mpm: [42, 44], cycle: 6, slots: JIVE_BASIC },
+  jive: { name: 'Jive', inTitle: /\bjive\b/i, counting: '1 2 3 a 4 5 a 6', mpm: [42, 44], cycle: 6, slots: JIVE_BASIC },
   jive8: { name: 'Jive', group: 'jive', counting: '1 2 3 a 4 5 a 6 7 8', mpm: [42, 44], cycle: 8, slots: [
     ...JIVE_BASIC,
     { c: 7, label: '7', cue: 'Step', click: true, step: true },
@@ -544,7 +551,7 @@ const DANCES = {
   jiveRepeat: { name: 'Jive', group: 'jive', counting: '1, 2, 3 a 4, 3 a 4', mpm: [42, 44], cycle: 6,
     slots: JIVE_BASIC.map(s => (s.c > 4 && !s.f ? { ...s, label: String(s.c - 2) } : s)) },
   // Two bars counted straight through. The tap moves a foot but the weight stays, so it is a hold that still clicks.
-  bachata: { name: 'Bachata', counting: '1 2 3 4 5 6 7 8', mpm: [28, 32], cycle: 8, slots: [
+  bachata: { name: 'Bachata', inTitle: /\bbachata\b/i, counting: '1 2 3 4 5 6 7 8', mpm: [28, 32], cycle: 8, slots: [
     { c: 1, label: '1', cue: 'Step', click: true, step: true },
     { c: 2, label: '2', cue: 'Step', click: true, step: true },
     { c: 3, label: '3', cue: 'Step', click: true, step: true },
@@ -566,7 +573,7 @@ const S = {
   displayEvents: [], clickEvents: [], nextClick: 0, shown: -2,
   dance: DANCES[store.get('dance', 'chacha')] ? store.get('dance', 'chacha') : 'chacha',
   click: store.get('click', 'off'), offset: store.get('offset', 0), zoom: store.get('zoom', 6),
-  rate: 1, loop: null, taps: [], dirty: true, wasPlaying: false
+  rate: 1, loop: null, taps: [], dirty: true, wasPlaying: false, tempoNote: '', titleHints: []
 };
 
 /* ---------- search helpers ---------- */
@@ -1034,6 +1041,7 @@ function afterBeatsChange() {
 }
 function retrack(P) {
   const f = S.feats;
+  S.tempoNote = '';
   P = Math.max(f.fps * 60 / 240, Math.min(f.fps * 60 / 40, P));
   S.P = P;
   const beats = trimSilent(trackBeats(f.O, P), f).map(i => i / f.fps + f.t0);
@@ -1042,6 +1050,59 @@ function retrack(P) {
   S.cycleShift = 0;
   S.loop = null; $('loop').value = '0';
   afterBeatsChange();
+}
+
+/* ---------- tempo and dance ---------- */
+// Competition tempo widened for social and show music, so a slow practice song still counts as that dance.
+const fitsDance = (d, mpm) => mpm >= d.mpm[0] * 0.75 && mpm <= d.mpm[1] * 1.1;
+// Which reading of the tempo a dance is danced at: 1 as detected, 2 doubled, 0.5 halved, 0 if none fits.
+// A tempo given in the song title, in bars per minute, narrows it to that tempo.
+function tempoFit(d, bpm, statedMpm) {
+  if (!d.mpm) return 1;
+  const bb = d.barBeats || 4, fits = m => (statedMpm ? Math.abs(m / statedMpm - 1) <= 0.1 : fitsDance(d, m));
+  return [1, 2, 0.5].find(f => fits(bpm * f / bb)) || 0;
+}
+// Practice uploads often give the tempo after the dance, in bars or beats per minute: "Samba 51", "Bachata 128 BPM".
+function statedTempo(name, d) {
+  const bb = d.barBeats || 4;
+  for (const m of name.matchAll(/\b\d{2,3}\b/g)) {
+    const n = +m[0];
+    if (fitsDance(d, n)) return n;
+    if (fitsDance(d, n / bb)) return n / bb;
+  }
+  return null;
+}
+// Dances the title names, kept only when the song's tempo (or half or double it) suits them.
+function titleDances(name, bpm) {
+  return Object.keys(DANCES).filter(id => DANCES[id].inTitle && DANCES[id].inTitle.test(name))
+    .map(id => ({ id, mpm: statedTempo(name, DANCES[id]) }))
+    .filter(h => tempoFit(DANCES[h.id], bpm, h.mpm) || tempoFit(DANCES[h.id], bpm));
+}
+// Detection favours about 110 BPM, so a fast song can come out at half speed and a slow one at double.
+// Once the dance is known, count the song at the speed that dance is danced to.
+function fitTempoToDance(announce) {
+  const d = DANCES[S.dance], group = d.group || S.dance;
+  if (!S.feats || S.beats.length <= 4 || !d.mpm) return;
+  const bpm = 60 / S.ibi, hint = S.titleHints.find(h => h.id === group);
+  const f = (hint && hint.mpm && tempoFit(d, bpm, hint.mpm)) || tempoFit(d, bpm);
+  if (f !== 2 && f !== 0.5) return;
+  retrack(S.P / f);
+  // compared with what detection found, not with the reading before this change
+  const ratio = S.periodAuto / S.P, near = x => Math.abs(ratio / x - 1) < 0.1;
+  S.tempoNote = near(1) ? ''
+    : near(2) ? ` It was detected at ${(60 / S.ibi / 2).toFixed(1)} BPM and is counted twice as fast. Half tempo goes back.`
+    : near(0.5) ? ` It was detected at ${(60 / S.ibi * 2).toFixed(1)} BPM and is counted half as fast. Double tempo goes back.`
+    : ` It's counted ${ratio > 1 ? 'faster' : 'slower'} than detected. Detect again starts over.`;
+  updateSongInfo();
+  if (announce) toast(`Counting at ${(60 / S.ibi).toFixed(1)} BPM, the speed ${d.name} is danced to.`);
+}
+function renderSuggest() {
+  const box = $('suggest'), d = DANCES[S.dance], others = S.titleHints.filter(h => h.id !== (d.group || S.dance));
+  box.hidden = !others.length;
+  if (!others.length) return;
+  const said = others.map(h => DANCES[h.id].name + (h.mpm ? ` at ${+h.mpm.toFixed(1)} bars per minute` : ''));
+  box.replaceChildren(`The title says ${said.join(' or ')}.`,
+    ...others.map(h => button(`Count it as ${DANCES[h.id].name}`, '', () => setDance(timingChosen[h.id] || h.id))));
 }
 
 /* ---------- UI ---------- */
@@ -1107,6 +1168,7 @@ function updateSongInfo() {
   $('len').textContent = fmtTime(S.duration);
   $('speedNote').textContent = S.rate === 1 ? '' : `Now ${(bpm * S.rate).toFixed(0)} BPM, ${(bpm * S.rate / bb).toFixed(1)} MPM`;
   const fit = $('fit');
+  renderSuggest();
   if (S.beats.length <= 4) { fit.textContent = 'No steady beat found. Try Tap along below.'; return; }
   if (!d.mpm) { fit.textContent = 'Pick a dance to see where the steps go and compare the song with competition tempo.'; return; }
   const m = bpm / bb, [lo, hi] = d.mpm;
@@ -1116,6 +1178,7 @@ function updateSongInfo() {
     : m > hi + 0.5 ? `faster than competition ${d.name} (${lo}–${hi} MPM).`
     : `inside competition ${d.name} tempo (${lo}–${hi} MPM).`;
   fit.textContent = `This song runs at ${m.toFixed(1)} bars per minute: ${verdict}`
+    + S.tempoNote
     + (bb === 2 ? ' Samba music is in 2/4, so a bar is 2 beats. The deep surdo drum often hits hardest on 2, so check the 1 by ear.' : '');
 }
 
@@ -1369,11 +1432,14 @@ async function loadAudio(blob, buffer, name, isDemo) {
   setBusy(true, 'Listening for the beats…', 0.03);
   const { feats, peaks, P } = await analyze(buffer, (p, msg) => { if (my === loadToken) setBusy(true, msg, p); });
   if (my !== loadToken) return;
-  S.feats = feats; S.peaks = peaks; S.periodAuto = P; S.duration = buffer.duration; S.name = name; S.isDemo = isDemo;
+  S.feats = feats; S.peaks = peaks; S.periodAuto = P; S.duration = buffer.duration; S.name = name; S.isDemo = isDemo; S.titleHints = [];
   S.taps = []; updateTapInfo();
   await player.load(blob, buffer);
   if (my !== loadToken) return;
   retrack(P);
+  S.titleHints = titleDances(name, 60 / S.ibi);
+  fitTempoToDance(false);
+  updateSongInfo();
   player.seek(0); afterSeek();
   setBusy(false);
   if (player.mode === 'buffer') toast('Using the backup player: here slower speeds also lower the pitch.');
@@ -1787,7 +1853,7 @@ document.addEventListener('drop', e => {
   if (f) loadFile(f);
 });
 const timingChosen = { [DANCES[S.dance].group || S.dance]: S.dance }; // so going back to a dance keeps the timing you picked for it
-const setDance = id => { S.dance = id; timingChosen[DANCES[id].group || id] = id; store.set('dance', id); renderSlots(); rebuildEvents(); updateSongInfo(); };
+const setDance = id => { S.dance = id; timingChosen[DANCES[id].group || id] = id; store.set('dance', id); renderSlots(); rebuildEvents(); updateSongInfo(); fitTempoToDance(true); };
 document.querySelectorAll('[data-dance]').forEach(b => b.addEventListener('click', () => setDance(timingChosen[b.dataset.dance] || b.dataset.dance)));
 $('timing').addEventListener('change', e => setDance(e.target.value));
 $('cycleStart').addEventListener('click', startCycleHere);
@@ -1812,7 +1878,7 @@ $('double').addEventListener('click', () => changeTempo(0.5));
 $('shiftHalf').addEventListener('click', () => shiftHalf(true));
 $('tap').addEventListener('click', tap);
 $('useTaps').addEventListener('click', useTaps);
-$('redetect').addEventListener('click', () => { if (!S.feats) return; retrack(S.periodAuto); toast('Beats detected again from scratch.'); });
+$('redetect').addEventListener('click', () => { if (!S.feats) return; retrack(S.periodAuto); fitTempoToDance(false); toast('Beats detected again from scratch.'); });
 $('offset').addEventListener('input', e => {
   S.offset = +e.target.value / 1000; store.set('offset', S.offset);
   $('offsetVal').textContent = (S.offset > 0 ? '+' : '') + Math.round(S.offset * 1000) + ' ms';

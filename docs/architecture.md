@@ -55,7 +55,7 @@ There are two layers:
 | `header.top` | Title, "← Dance Lab" link, **Load a song** button and the hidden `#file` input |
 | `#library` | Song library panel: search input `#q`, result list `#results`, tag filter `#tagFilter`, saved songs `#songs`. Hidden unless the server answers |
 | `#libraryOff` | One-line hint to use `start.bat`. Shown only on local hosts without a server |
-| `.song` | Song name, tempo (BPM), bars per minute (MPM), length, tempo-fit sentence, progress bar |
+| `.song` | Song name, tempo (BPM), bars per minute (MPM), length, tempo-fit sentence `#fit`, dance suggestions from the title `#suggest`, progress bar |
 | `.stage` | Dance picker, **Timing** select `#timing` (shown for dances with more than one count), **Start my basic here** `#cycleStart`, big count `#bigNum`, cue `#bigCue`, step slots `#slots`, bar number and 8-bar dots |
 | `.timeline` | Two canvases: `#detail` (a few seconds around the playhead; tap to play, drag to move through the song) and `#overview` (the whole song; tap to play, drag to jump) |
 | `.transport` | Previous/next bar, Play, clock, speed, click track, loop, zoom |
@@ -70,7 +70,7 @@ There are two layers:
 4. **Analysis:** `fft`, `spectralFeatures`, `lowSignal`, `bassNotes`, `bassBetweenBeats`, `onsetEnvelope`, `estimatePeriod`, `trackBeats`, `trimSilent`, `guessDownbeat`, `makePeaks`, `analyze`. See [beat-detection.md](beat-detection.md).
 5. **Example groove:** `makeDemo` synthesizes 16 bars of cha-cha at 124 BPM in a `Float32Array`; `toWav` wraps it as a WAV blob.
 6. **Playback:** `player`, which has two modes (below), plus `playClick`, `resetSchedule` and `scheduleClicks` for the click track.
-7. **Beat grid state:** `rebuildEvents`, `afterBeatsChange`, `retrack`.
+7. **Beat grid state:** `rebuildEvents`, `afterBeatsChange`, `retrack`. Then tempo and dance: `fitsDance`, `tempoFit`, `statedTempo`, `titleDances`, `fitTempoToDance`, `renderSuggest`.
 8. **UI:** colors from CSS tokens (`readColors`), `renderSlots`, `updateSongInfo`, `updateStage`, `drawDetail`, `drawOverview`, `frame`.
 9. **Actions:** play, bar seek, set or move the 1, start the cycle (`startCycleHere`), tempo changes, half-beat shift, loop, tap tempo, `loadAudio`, `loadFile`.
 10. **Song library:** state `L`, `api()`, `initLibrary`, tags (`saveTags`, `addTag`, `renderTagFilter`, `songTagsEl`), search, download polling, load and delete.
@@ -95,6 +95,8 @@ There are two layers:
 | `offset` | Sync nudge in seconds, added to every beat when drawing and clicking |
 | `rate`, `loop`, `zoom`, `taps` | Speed, loop window, timeline zoom, tap-tempo times |
 | `shown`, `dirty` | Render bookkeeping: index of the event on screen, and whether to redraw |
+| `tempoNote` | The sentence saying the song is counted at double or half its detected speed. Cleared by every `retrack()` |
+| `titleHints` | Dances the song's title names that fit its tempo, each `{ id, mpm }`, with `mpm` the tempo the title gives or `null` |
 
 `L` (song library) holds search results, saved songs, download jobs, the loaded library file, search timers and the tag filter and tag box (`tagFilter`, `tagging`, `tagDraft`). `L.online` says whether the server needs a sign-in. `L.store` is where songs live, chosen by `keepsSongs` from `/api/status`: `diskStore` (on the server: `library/` or `DANCE_LAB_DATA`) or `browserStore` (IndexedDB database `dance-lab`, store `songs`). Library code goes through `L.store` and doesn't care which one it has.
 
@@ -107,6 +109,7 @@ File or Blob ─► decodeAudioData (22,050 Hz)
             ─► analyze(): resample to 11,025 Hz mono ─► peaks + spectral features ─► onset envelope ─► period P
             ─► player.load() (blob URL in <audio>, or Web Audio fallback)
             ─► retrack(P): trackBeats ─► trimSilent ─► beat times ─► bassBetweenBeats ─► guessDownbeat ─► k
+            ─► titleDances(name) ─► fitTempoToDance(): retrack again at double or half speed if the dance needs it
             ─► rebuildEvents(): dance slots in time ─► display and click events
             ─► frame loop picks it up
 ```
