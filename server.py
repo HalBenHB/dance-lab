@@ -182,17 +182,34 @@ def clean_tags(tags: object) -> list[str]:
     return list(cleaned.values())[:MAX_TAGS]
 
 
-def set_tags(name: str, tags: object) -> list[str] | None:
-    """Saves a song's tags and returns them as saved, or None if there's no such song."""
-    cleaned = clean_tags(tags)
+def clean_count(count: object) -> dict | None:
+    """A saved count: the dance, the tempo and the time of one 1, as the dancer had them. None removes it."""
+    if not isinstance(count, dict):
+        return None
+    number = lambda v, lo, hi: isinstance(v, (int, float)) and not isinstance(v, bool) and lo <= v <= hi
+    cleaned: dict = {"saved": now_iso()}
+    if isinstance(count.get("dance"), str) and re.fullmatch(r"[A-Za-z0-9]{1,24}", count["dance"]):
+        cleaned["dance"] = count["dance"]
+    if number(count.get("bpm"), 20, 400):
+        cleaned["bpm"] = round(float(count["bpm"]), 2)
+    if number(count.get("one"), 0, 36000):
+        cleaned["one"] = round(float(count["one"]), 3)
+    return cleaned
+
+
+def update_song(name: str, key: str, value: object) -> bool:
+    """Sets one field of a song's library entry, or removes it when value is None. False if there's no such song."""
     with lock:
         songs = scan_library()
         for song in songs:
             if song["file"] == name:
-                song["tags"] = cleaned
+                if value is None:
+                    song.pop(key, None)
+                else:
+                    song[key] = value
                 write_index(songs)
-                return cleaned
-    return None
+                return True
+    return False
 
 
 # ---------- YouTube ----------
@@ -438,7 +455,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path not in ("/api/download", "/api/login", "/api/tags"):
+        if path not in ("/api/download", "/api/login", "/api/tags", "/api/count"):
             return self.send_json({"error": "Unknown address."}, 404)
         if not self.from_page():
             return None
@@ -452,11 +469,12 @@ class Handler(SimpleHTTPRequestHandler):
             return self.login(str(body.get("password", "")))
         if not self.signed_in():
             return None
-        if path == "/api/tags":
-            tags = set_tags(str(body.get("file", "")), body.get("tags"))
-            if tags is None:
+        if path in ("/api/tags", "/api/count"):
+            key = path.rsplit("/", 1)[1]
+            value = clean_tags(body.get("tags")) if key == "tags" else clean_count(body.get("count"))
+            if not update_song(str(body.get("file", "")), key, value):
                 return self.send_json({"error": "That song isn't in your library any more."}, 404)
-            return self.send_json({"tags": tags})
+            return self.send_json({key: value})
         if not HAS_DOWNLOADER:
             return self.send_json({"error": "The downloader isn't installed. Run start.bat or update.bat."}, 503)
         video_id = str(body.get("id", ""))

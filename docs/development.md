@@ -27,6 +27,7 @@ To try keeping songs on the host as well, also set `DANCE_LAB_DATA` to a folder 
 
 - **Downbeat guess** (`guessDownbeat`). It's the least reliable part, and small weight changes flip songs between beat 1 and beat 3. Test any change against the example groove and at least one real song.
 - **Half-beat correction** (`bassBetweenBeats`). It moves the whole grid, so a wrong firing puts every count on the "and". After changing it, check that only "Hit the Road Jack" moves among the saved songs, or the equivalent on the songs you have.
+- **Thresholds tuned on few songs.** The "not sure" line (70% of 8-bar stretches, 6% beat spread) and the swing rule (2×, 1.5×, 8%) were set on five real songs and synthetic grooves. Move them only with `tools/check-detection.js` and a larger saved test set.
 - **Timing between audio and display.** The display combines the `<audio>` clock (`player.time()`), the sync nudge (`S.offset`) and the click scheduling look-ahead (0.15 s times speed). A change to one of them shows up as early or late counts.
 - **Song-load races.** `loadAudio` awaits analysis and then `player.load`. `loadToken` drops outdated loads. Any new `await` in that path must check the token afterwards.
 - **`% 4` everywhere.** `countAt`, `barAt`, loops, bar seeking and the overview ticks all assume 4-beat groups. Changing the group size touches all of them. A dance's `cycle` only changes where its slots go.
@@ -51,6 +52,18 @@ To try keeping songs on the host as well, also set `DANCE_LAB_DATA` to a folder 
 - [ ] Changed the server? Run the safety checks (below).
 - [ ] Light and dark mode both readable. Phone width (about 400 px) has no sideways scrolling.
 - [ ] Never commit anything from `library/`, `.venv/` or audio files. `.gitignore` covers them; don't override it with `git add -f`.
+
+### Measuring detection on your songs
+
+Saved counts are the right answers, and `tools/check-detection.js` scores detection against them:
+
+```bash
+node tools/check-detection.js
+```
+
+It needs Node 18 or newer and ffmpeg, and it reads `library/` unless you give another folder. It runs the page's own code, so it measures exactly what the page does. For each song with a saved count, it shows whether the tempo and the 1 match and whether the dance was suggested. Songs without one are listed with what detection finds. Run it before and after any change to detection, and compare.
+
+Songs saved in a browser (online mode) keep their counts in that browser, where the script can't read them. Build the test set on your computer.
 
 ### Checking downbeats precisely
 
@@ -109,13 +122,13 @@ For an end-to-end download test, use YouTube's first video, "Me at the zoo" (`ht
 - **How long the free proxy keeps working.** YouTube could block Webshare's shared addresses at any time ([online.md](online.md)). It also isn't known yet whether the proxy works without the cookies.
 - **Docker isn't installed on the development machine,** so Render's builds are the only test of the image. A `Download failed` line in Render's logs includes yt-dlp's warnings, which usually hold the real reason.
 - **Online mode on a real phone,** including how long iPhones keep songs in IndexedDB.
-- **Remember fixes per song.** Where the 1 is, the tempo and the nudge are lost on reload. `library.json` could store them per file.
+- **What a saved count leaves out.** It keeps the dance, the tempo and the 1, but not **Start my basic here** or the sync nudge (which is per device).
 - **Paso Doble** isn't in the counter yet.
 - **Where to keep songs online.** The owner wants songs kept on the host. `DANCE_LAB_DATA` is ready for a paid Render disk, about $7.25 a month. A free cloud storage bucket is the other choice, and would need more code. See [online.md](online.md#keeping-songs-on-the-host).
 - **Jive and Bachata on real songs.** "Hit the Road Jack", a jive song, is the only real song checked for them. How well the 1 is found on real bachata, and whether a pushed bass throws off its tempo as it did on a synthesized groove (see [beat-detection.md](beat-detection.md)), aren't known.
-- **Suggesting a dance from the sound.** Today only the title suggests a dance. Tempo narrows it down: Jive is the only fast one, Rumba and Samba sit around 100 BPM, and Cha-cha, Bachata and Paso Doble around 120–128. Rhythm cues would have to decide the rest: swing for Jive, busy a's and a heavy 2 for Samba, the 4-&-1 for Cha-cha, the guira for Bachata. Building it needs about five songs per dance whose dance is known; tagging them with the dance gives that test set. It should offer a dance only when one clearly wins.
+- **Suggesting more dances from the sound.** Only swing (for Jive) is heard today. Tempo narrows the rest: Rumba and Samba sit around 100 BPM, and Cha-cha, Bachata and Paso Doble around 120–128. Other cues would have to decide: busy a's and a heavy 2 for Samba, the 4-&-1 for Cha-cha, the guira for Bachata. Build them once there are about five songs per dance with saved counts, and offer a dance only when one clearly wins.
 - **Bar › while paused.** Each jump lands 30 ms before the 1, so the next press finds the same bar and the song stays put. It works while playing, and ‹ Bar isn't affected. `seekBar` needs to look from just after where it landed.
 - **Timeline dragging on a real phone.** Touch was tested with simulated touch events and the phone-width view, not a real iPhone or Android. Check that a tap starts audio, that a sideways drag moves the song, and that an up-and-down swipe scrolls the page.
 - **Few patterns per dance.** Many figures in every dance run on other counts. Each new pattern would be a new `DANCES` entry with a `group`, like the Samba and Jive timings. The cues on Jive's 7 and 8 just say Step, because the steps there depend on the figure.
-- **No automated tests.** The example groove could become a headless test (for example Node plus an `OfflineAudioContext` polyfill), but nothing runs today.
+- **No automated tests.** `tools/check-detection.js` measures detection on real songs once they have saved counts, but nothing checks the page itself. The example groove could become a headless test (for example Node plus an `OfflineAudioContext` polyfill).
 - **Phones talking to the server.** `--lan` was written but hasn't been tested on a real phone.

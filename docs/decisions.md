@@ -102,6 +102,26 @@ Each decision lists what was done, why, what else was considered, and what chang
 - **Alternatives considered:** a different tempo prior per dance, which would still miss songs near the edge of the range; only showing a button, which is what the old "press Double tempo" sentence already did.
 - **Do not change because:** applying it after the manual tempo buttons would undo what the dancer just chose.
 
+## Your fixes are the test set
+
+- **What:** a song's count (dance, tempo, the time of one 1) is saved with it in Your songs by **Save this count** and by every fix to the 1 or the tempo. The song then opens that way. **Detect again** forgets it. `tools/check-detection.js` runs detection on every song and scores it against those saved counts.
+- **Why:** the owner asked how to know whether detection is right. Only the dancer knows the right count, and the fixes they already make are that knowledge. With a test set, a change to detection is measured on many songs instead of judged on one.
+- **Changing the dance doesn't change a saved count.** Dancers often pick the dance before loading the next song. When it did, it rewrote the previous song's saved dance; testing caught it.
+- **Songs from a file aren't saved.** There's no library entry to keep the count in, and a song dropped on the page must never overwrite another song's count. That's why the page keeps the loaded song's entry in `S.song` rather than relying on the highlighted row.
+- **Alternatives considered:** asking for the right answer song by song in a separate tool, which nobody would do; trusting that a close score means a wrong 1, which "Hit the Road Jack" disproved.
+
+## "Not sure" comes from parts of the song disagreeing
+
+- **What:** the 1 is guessed again in each 8-bar stretch. If fewer than 70% agree with the whole song, the page says it isn't sure. A beat that varies by more than 6% gets a warning too.
+- **Why:** the margin between the best and second-best 1 for the whole song didn't separate right from wrong: "Hit the Road Jack" won by 0.17 and is right. Disagreement between stretches is something a dancer can act on: listen to the song in a few places.
+- **Do not change because:** a warning on every song stops being read. The 70% line warns on the three songs whose 1 is hard to hear, and not on Sexbomb or Sway.
+
+## Swing suggests Jive, from data in `DANCES`
+
+- **What:** a dance marked `swing: true` is offered when the song is swung at that dance's speed. Today that's Jive.
+- **Why:** swing is the clearest sound cue for any dance in the tool, and Jive is the only swing dance in it. "Hit the Road Jack" has a jive tempo and is swung, but its title doesn't say so.
+- **Do not change because:** dropping the 1/3 check would offer Jive for songs whose tempo was misread at two-thirds.
+
 ## Dance suggestions come from the title, not yet from the sound
 
 - **What:** a dance named in the song's title is offered as a button, and only if the song's tempo fits that dance. A tempo in the title also settles half or double.

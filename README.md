@@ -42,7 +42,7 @@ Songs you fetch this way are saved in the browser on that device. To keep them o
 
 ### If the count looks wrong
 
-Press **1** on your keyboard (or the **This is the 1** button) at the moment you hear the one. More fixes are under **Fix the count** on the page. To count a dance another way, such as Bachata as 1, 2, 3, tap or Jive with 7 8, use the **Timing** menu next to the dances.
+Press **1** on your keyboard (or the **This is the 1** button) at the moment you hear the one. More fixes are under **Fix the count** on the page. If the page isn't sure where the 1 is, it says so under the tempo. For a song in **Your songs**, your fixes are saved with it, and **Save this count** saves a count that was right; the song opens that way next time. To count a dance another way, such as Bachata as 1, 2, 3, tap or Jive with 7 8, use the **Timing** menu next to the dances.
 
 Picking your dance also sets the speed. Many songs can be counted at two speeds, one twice the other, so the page uses the one that suits the dance: "Hit the Road Jack" counts at 173.6 BPM for Jive and 86.8 for Bachata. If a song's title names a dance, such as "Banto (Samba 51)", the page offers it with a button.
 
@@ -59,6 +59,7 @@ Picking your dance also sets the speed. Many songs can be counted at two speeds,
 | `Dockerfile`, `render.yaml` | Recipe for running the server online on Render |
 | `CLAUDE.md` | How to publish changes, for anyone (or any AI assistant) working on this |
 | `library/` | Songs downloaded on your computer. Created on first download and never uploaded to GitHub |
+| `tools/check-detection.js` | For developers: checks the beat detection against the counts saved for your songs |
 | `docs/` | Detailed documentation: how it works, setup, design notes |
 
 ## Updating the websites

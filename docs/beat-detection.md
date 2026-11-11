@@ -108,6 +108,38 @@ A steady beat at 87 BPM is also every other beat at 174, so a song can honestly 
 
 Practice uploads often name the dance, and sometimes the tempo: "Banto (Samba 51)", "Bachata 128 BPM". Each dance's `inTitle` pattern finds its name. A 2- or 3-digit number that fits the dance's range counts as bars per minute; failing that, divided by `barBeats`, as beats per minute. A named dance is offered only if the song's tempo, or half or double it, fits that dance. That keeps "Jive Talkin'", a disco song at about 105 BPM, from being offered as Jive. When the title names more than one dance that fits, each gets a button.
 
+### 12. Saying when it isn't sure (`judgeBeats`)
+
+Two checks run whenever the beats are found again, and either one adds a line under the tempo (`#unsure`):
+
+- **The 1** (`oneAgreement`): the 1 is guessed again in every 8-bar stretch of the song (32 beats, starting every 4 bars). If fewer than 70% of the stretches agree with the whole song, the page says it isn't sure where the 1 is. A close score for the whole song wasn't a good sign by itself: "Hit the Road Jack" won by a hair and is right.
+- **The beat** (`beatSpread`): the spread of the time between beats, as a share of a beat. Above 6%, the page says the beat isn't steady. The saved songs are all between 1.7% and 3.3%.
+
+**This is the 1**, **← Earlier / Later →** and a saved count clear the warning about the 1.
+
+| Song | 8-bar stretches agreeing | Warns |
+|---|---|---|
+| "Sexbomb" | 96% | No |
+| "Sway" | 87% | No |
+| "Jesus to a Child" | 61% | Yes |
+| "Hit the Road Jack" at 86.8 BPM | 44% | Yes. At 173.6 on Jive, no |
+| "Banto (Samba 51)" | 33% | Yes. The surdo hits hardest on 2 |
+
+### 13. Swing (`swingFeel`, `soundDances`)
+
+Jive is danced to swung music: the offbeat comes about 2/3 through the beat instead of half way. For each dance marked `swing: true`, the beats are put at that dance's speed as quarter notes, and the strongest onset is taken near 1/3, 1/2 and 2/3 through each beat, and on it. The song counts as swung when the 2/3 onsets are at least twice the 1/2 ones, at least 1.5 times the 1/3 ones, and at least 8% of the on-beat ones.
+
+The 1/3 check is there because a misread tempo also puts notes at 2/3: a synthesized bachata groove read at two-thirds of its tempo has notes at every third of a beat, and failed only that check.
+
+| Song | 2/3 vs 1/2 | 2/3 vs 1/3 | Swung |
+|---|---|---|---|
+| "Hit the Road Jack" | 2.8 | 1.9 | Yes |
+| "Jesus to a Child" | 0.8 | 1.0 | No |
+| "Sway" | 0.2 | 1.2 | No |
+| "Sexbomb", "Banto" | — | — | No Jive reading of the tempo |
+
+Hit the Road Jack is the only real swung song tested, so the thresholds are a first guess.
+
 ## Fix the count tools
 
 All of these edit `S.beats`, `S.k` or `S.offset`, then rebuild events.
@@ -120,7 +152,8 @@ All of these edit `S.beats`, `S.k` or `S.offset`, then rebuild events.
 | **Shift half a beat** (`shiftHalf`) | Replaces beats with the midpoints between them, then guesses the 1 again |
 | **Tap along** (`tap`, `useTaps`, key `T`) | Needs at least 6 taps; a pause over 2 s starts over. The median tap interval becomes `P` for `retrack()`. If the new beats sit more than a quarter beat away from the taps, it also shifts by half a beat |
 | **Sync nudge** (`#offset`) | ±300 ms added to every beat when drawing and clicking. Saved per browser |
-| **Detect again** | `retrack(S.periodAuto)`, then `fitTempoToDance()` |
+| **Detect again** | Forgets a saved count, then `retrack(S.periodAuto)` and `fitTempoToDance()` |
+| **Save this count** (`rememberCount`) | Saves the dance, the tempo and the time of the first 1 with the song in Your songs. The fixes above save it too. The song then opens that way (`applySavedCount`) |
 
 `retrack()` always guesses the 1 again and clears any loop.
 
@@ -145,7 +178,11 @@ It is the test fixture for detection: expected downbeats are `0.6 + n · 1.935 s
 | "Sway" (Michael Bublé, lyric video) | 126.3 BPM | Not checked against another source |
 | "Hit the Road Jack" (Ray Charles, lyrics video) | 86.8 BPM; 173.6 with Jive chosen | A jive song, as the owner pointed out. The 1 on G#, the start of the bass line G#, F#, E, D#, in 41 of 41 bars. At 173.6, on G# and E |
 
+| "Sexbomb" (Tom Jones & Mousse T, official video) | 123.0 BPM, 30.8 MPM | Inside competition Cha-cha. Straight, not swung. The 1 agreed in 96% of 8-bar stretches, the clearest of all, but the bass stays on G#, so reading the bass can't confirm it |
+
 The first three confirm tempo only. Where the 1 landed on them hasn't been checked by ear. "Hit the Road Jack" was checked by reading the bass note on each beat, not by ear. No real Bachata song has been tested yet.
+
+To measure detection on your own songs, save their counts and run `node tools/check-detection.js` (see [development.md](development.md)).
 
 ## Known limits
 

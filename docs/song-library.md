@@ -41,7 +41,7 @@ library/
   ]
   ```
 
-  `tags` is left out until a song has had one.
+  `tags` is left out until a song has had one. A song can also have a saved `count`, from **Save this count** or a fix to the 1 or the tempo: `{"dance": "jive", "bpm": 173.59, "one": 0.36, "saved": "…"}`, where `one` is the time in seconds of one of the song's 1s. The page opens the song that way, and `tools/check-detection.js` measures detection against it.
 
 - Audio files with no entry (`.m4a .mp4 .webm .opus .ogg .mp3 .wav .flac`) get one on the fly: the title is the file name, and `youtube_id` is `null`. Entries whose file is missing are dropped.
 
@@ -59,6 +59,7 @@ The server listens on `http://localhost:8766` (`--port` changes this). All respo
 | GET | `/api/library` | — | `{"songs": [ …entries as in library.json… ]}` |
 | GET | `/api/audio?file=…` | `file`: name as in the library | The audio bytes, with the right `Content-Type`. No range requests (the page downloads the whole file into a Blob) |
 | POST | `/api/tags` | `{"file": "<name as in the library>", "tags": ["…"]}` and header `X-Dance-Lab: 1` | `{"tags": […]}` as saved: the song's whole list, tidied. 404 if there's no such song |
+| POST | `/api/count` | `{"file": "…", "count": {"dance", "bpm", "one"}}`, or `"count": null` to forget it, and header `X-Dance-Lab: 1` | `{"count": {…}}` as saved, with unknown or out-of-range fields left out and `saved` added. 404 if there's no such song |
 | DELETE | `/api/library?file=…` | Header `X-Dance-Lab: 1` | `{"ok": true}` |
 
 Starting a download that is already running returns the existing job instead of starting another. At most two downloads run at once; others wait as `queued`.

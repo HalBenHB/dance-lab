@@ -41,6 +41,7 @@ There are two layers:
 | `render.yaml` | Render Blueprint: a free Docker web service that asks for `DANCE_LAB_PASSWORD` |
 | `requirements.txt` | `yt-dlp[default]`, unpinned on purpose (see [decisions.md](decisions.md)) |
 | `library/` | Downloaded songs plus `library.json`. Created on demand and git-ignored |
+| `tools/check-detection.js` | Runs the page's detection in Node on every song in a library folder, and scores it against the saved counts. Needs ffmpeg. Not part of any website |
 | `.venv/` | Private Python environment. Git-ignored |
 | `.gitattributes` | LF everywhere, except CRLF for `.bat` files |
 | `.claude/launch.json` | Local preview config for Claude Code. Git-ignored |
@@ -55,11 +56,11 @@ There are two layers:
 | `header.top` | Title, "← Dance Lab" link, **Load a song** button and the hidden `#file` input |
 | `#library` | Song library panel: search input `#q`, result list `#results`, tag filter `#tagFilter`, saved songs `#songs`. Hidden unless the server answers |
 | `#libraryOff` | One-line hint to use `start.bat`. Shown only on local hosts without a server |
-| `.song` | Song name, tempo (BPM), bars per minute (MPM), length, tempo-fit sentence `#fit`, dance suggestions from the title `#suggest`, progress bar |
+| `.song` | Song name, tempo (BPM), bars per minute (MPM), length, tempo-fit sentence `#fit`, dance suggestions `#suggest`, not-sure warnings `#unsure`, progress bar |
 | `.stage` | Dance picker, **Timing** select `#timing` (shown for dances with more than one count), **Start my basic here** `#cycleStart`, big count `#bigNum`, cue `#bigCue`, step slots `#slots`, bar number and 8-bar dots |
 | `.timeline` | Two canvases: `#detail` (a few seconds around the playhead; tap to play, drag to move through the song) and `#overview` (the whole song; tap to play, drag to jump) |
 | `.transport` | Previous/next bar, Play, clock, speed, click track, loop, zoom |
-| Fix the count | Six tool cards: set the 1, half/double tempo, shift half a beat, tap along, sync nudge, detect again |
+| Fix the count | Seven tool cards: set the 1, half/double tempo, shift half a beat, tap along, sync nudge, detect again, and save this count (`#saveCount`, `#countInfo`) |
 | How the counts work | Six reference cards and the keyboard shortcut list |
 
 ### Script sections, in file order
@@ -67,12 +68,12 @@ There are two layers:
 1. **Helpers and dance table:** `$`, `store` (localStorage with try/catch), `DANCES` (see [dances.md](dances.md)).
 2. **State `S`:** one object for everything about the loaded song and the view.
 3. **Search helpers:** `upperBound`, `lowerBound`, `nearestBeat`, `countAt`, `barAt`, `placeInCycle`, `heardBeat`.
-4. **Analysis:** `fft`, `spectralFeatures`, `lowSignal`, `bassNotes`, `bassBetweenBeats`, `onsetEnvelope`, `estimatePeriod`, `trackBeats`, `trimSilent`, `guessDownbeat`, `makePeaks`, `analyze`. See [beat-detection.md](beat-detection.md).
+4. **Analysis:** `fft`, `spectralFeatures`, `lowSignal`, `bassNotes`, `bassBetweenBeats`, `onsetEnvelope`, `estimatePeriod`, `trackBeats`, `trimSilent`, `downbeatScores`, `guessDownbeat`, `oneAgreement`, `beatSpread`, `swingFeel`, `makePeaks`, `analyze`. See [beat-detection.md](beat-detection.md).
 5. **Example groove:** `makeDemo` synthesizes 16 bars of cha-cha at 124 BPM in a `Float32Array`; `toWav` wraps it as a WAV blob.
 6. **Playback:** `player`, which has two modes (below), plus `playClick`, `resetSchedule` and `scheduleClicks` for the click track.
-7. **Beat grid state:** `rebuildEvents`, `afterBeatsChange`, `retrack`. Then tempo and dance: `fitsDance`, `tempoFit`, `statedTempo`, `titleDances`, `fitTempoToDance`, `renderSuggest`.
+7. **Beat grid state:** `rebuildEvents`, `afterBeatsChange`, `retrack`, `judgeBeats`. Then tempo and dance: `fitsDance`, `tempoFit`, `statedTempo`, `titleDances`, `fitTempoToDance`, `soundDances`, `renderSuggest`, `renderUnsure`. (`beatLabel`, the timeline's numbers, sits with the search helpers.)
 8. **UI:** colors from CSS tokens (`readColors`), `renderSlots`, `updateSongInfo`, `updateStage`, `drawDetail`, `drawOverview`, `frame`.
-9. **Actions:** play, bar seek, set or move the 1, start the cycle (`startCycleHere`), tempo changes, half-beat shift, loop, tap tempo, `loadAudio`, `loadFile`.
+9. **Actions:** play, bar seek, set or move the 1, start the cycle (`startCycleHere`), tempo changes, half-beat shift, loop, tap tempo, saved counts (`rememberCount`, `forgetCount`, `applySavedCount`, `updateCountInfo`), `loadAudio`, `loadFile`.
 10. **Song library:** state `L`, `api()`, `initLibrary`, tags (`saveTags`, `addTag`, `renderTagFilter`, `songTagsEl`), search, download polling, load and delete.
 11. **Wiring and `init()`,** including tap and drag on the timeline.
 
@@ -97,6 +98,9 @@ There are two layers:
 | `shown`, `dirty` | Render bookkeeping: index of the event on screen, and whether to redraw |
 | `tempoNote` | The sentence saying the song is counted at double or half its detected speed. Cleared by every `retrack()` |
 | `titleHints` | Dances the song's title names that fit its tempo, each `{ id, mpm }`, with `mpm` the tempo the title gives or `null` |
+| `soundHints` | Dance keys the sound points to; today only swing for Jive |
+| `unsure` | `{ one, beat }`: whether to warn that the 1, or the beat, may be wrong. Set by `judgeBeats()` |
+| `song` | The entry in Your songs the loaded song came from, or `null` for a file, a dropped song or the example. Saved counts are read from and written to it |
 
 `L` (song library) holds search results, saved songs, download jobs, the loaded library file, search timers and the tag filter and tag box (`tagFilter`, `tagging`, `tagDraft`). `L.online` says whether the server needs a sign-in. `L.store` is where songs live, chosen by `keepsSongs` from `/api/status`: `diskStore` (on the server: `library/` or `DANCE_LAB_DATA`) or `browserStore` (IndexedDB database `dance-lab`, store `songs`). Library code goes through `L.store` and doesn't care which one it has.
 
@@ -109,7 +113,7 @@ File or Blob ─► decodeAudioData (22,050 Hz)
             ─► analyze(): resample to 11,025 Hz mono ─► peaks + spectral features ─► onset envelope ─► period P
             ─► player.load() (blob URL in <audio>, or Web Audio fallback)
             ─► retrack(P): trackBeats ─► trimSilent ─► beat times ─► bassBetweenBeats ─► guessDownbeat ─► k
-            ─► titleDances(name) ─► fitTempoToDance(): retrack again at double or half speed if the dance needs it
+            ─► titleDances(name), soundDances() ─► a saved count? applySavedCount() : fitTempoToDance()
             ─► rebuildEvents(): dance slots in time ─► display and click events
             ─► frame loop picks it up
 ```
@@ -137,6 +141,7 @@ File or Blob ─► decodeAudioData (22,050 Hz)
 - **yt-dlp loads in the background.** Importing it takes seconds, so the server starts listening first and uses `find_spec` to report whether it's installed.
 - **Downloads** (`fetch_audio`) retry on HTTP 429, accept a combined video file when no audio-only stream is offered (`AUDIO_FORMAT`), and keep yt-dlp's warnings for the log (`YdlLog`).
 - **Online mode** turns on when `DANCE_LAB_PASSWORD` is set. API calls then need a signed session cookie, songs go to a temp folder, and each is deleted once it has been sent. Details are in [online.md](online.md).
+- **Saved counts:** `POST /api/count` stores a song's `count` in its `library.json` entry, through `update_song`, which `/api/tags` uses too. `clean_count` keeps only a known shape.
 - **`DANCE_LAB_DATA`** names a folder to keep songs in. It sets `KEEPS_SONGS`, so online mode then keeps songs the way your computer does, and the page uses `diskStore`. The server refuses to start if the folder is inside the Dance Lab folder, because everything in there is served as pages without the password.
 
 API details are in [song-library.md](song-library.md).
@@ -155,7 +160,7 @@ There are almost no classes. The structure comes from a few deliberate patterns:
 > The rest of the page calls `player.*` and never touches `<audio>` or Web Audio directly. Keep it that way, or the fallback mode silently breaks.
 
 > **One interface, two song stores** in `L.store`
-> `diskStore` and `browserStore` both offer `list`, `blob`, `remove` and `setTags`. Only `download()` knows about the difference, because with `browserStore` it has to move the song into the browser. Don't call `/api/library` or `/api/tags` directly from other code, or online mode breaks.
+> `diskStore` and `browserStore` both offer `list`, `blob`, `remove`, `setTags` and `setCount`. Only `download()` knows about the difference, because with `browserStore` it has to move the song into the browser. Don't call `/api/library`, `/api/tags` or `/api/count` directly from other code, or online mode breaks.
 
 > **Dirty-flag rendering** via `S.dirty` and `S.shown`
 > The stage DOM is touched only when the displayed event changes, and the canvases redraw only when playing or dirty. Any code that changes what's on screen while paused must call `markDirty()`, and set `S.shown = -2` if the big count should refresh.

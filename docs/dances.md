@@ -23,6 +23,7 @@ chacha: { name: 'Cha-cha', counting: '2, 3, 4-&-1', mpm: [30, 32], slots: [
 | `group` | Which dance this is another way of counting: the key of that dance's main entry. Leave it out on the main entry, which is the default |
 | `timing` | Text in the **Timing** select. Leave it out to use `counting` |
 | `inTitle` | A pattern that finds the dance's name in a song title, such as `/\bsamba\b/i`, so the page can offer the dance. Main entries only |
+| `swing` | `true` when the dance is danced to swung music (Jive), so a swung song can be offered as this dance. Main entries only |
 | `slots` | The moments in each 4-beat group (or cycle), in the order the dancer counts them |
 
 Each slot:
@@ -59,6 +60,7 @@ From the slots, `rebuildEvents()` makes `S.displayEvents`, with every slot of ev
 | `sambaVolta` | Samba, timing "1 a 2 a 3 a 4" | 1 a 2 a 3 a 4 | Cross on each beat, side on each a |
 | `jive` | Jive, the default timing | 1 2 3 a 4 5 a 6 | Rock step on 1 and 2, then two chassés. A 6-beat `cycle` |
 | `jive8` | Jive, timing "1 2 3 a 4 5 a 6 7 8" | 1 2 3 a 4 5 a 6 7 8 | The basic plus two steps on 7 and 8. An 8-beat `cycle` |
+| `jiveCount8` | Jive, timing "1 2 3 4 5 6 7 8: the music's count" | 1 2 3 4 5 6 7 8 | One count a beat, cues One to Eight, no steps. An 8-beat `cycle`, for counting the music in eights |
 | `jiveRepeat` | Jive, timing "1, 2, 3 a 4, 3 a 4" | 1, 2, 3 a 4, 3 a 4 | The basic, with both chassés counted 3 a 4. A 6-beat `cycle` |
 | `bachata` | Bachata, the default timing | 1 2 3 4 5 6 7 8 | Steps on 1, 2, 3 and 5, 6, 7, with taps on 4 and 8 that click but keep the weight (`hold`). An 8-beat `cycle` |
 | `bachataTap` | Bachata, timing "1, 2, 3, tap" | 1, 2, 3, tap | The same steps counted in one bar |
@@ -88,8 +90,13 @@ The 8-count patterns, Bachata and Jive with 7 8, fit two bars exactly, so the mu
 
 - **Speed:** a song can usually be counted at two speeds, one twice the other. When you pick a dance, the page counts the song at whichever speed fits that dance's tempo, and says so under the tempo if it doubled or halved it. "Hit the Road Jack" is 86.8 BPM on Bachata and 173.6 on Jive. See [beat-detection.md](beat-detection.md), step 10.
 - **Suggestions:** if the song's title names a dance other than the one chosen, and the song's tempo fits that dance, a line under the tempo offers it: "The title says Samba at 51 bars per minute. **Count it as Samba**". A tempo in the title also settles the speed. See step 11.
+- **Swing:** a swung song whose tempo fits a dance with `swing: true` is offered too: "It sounds swung, like Jive." See step 13.
 
-Neither looks at the sound beyond the tempo, so they can't tell Cha-cha from Bachata at the same speed. Suggesting a dance from the sound is an open question in [development.md](development.md).
+Apart from swing, nothing listens to the style of the music, so the page can't tell Cha-cha from Bachata at the same speed. That's an open question in [development.md](development.md).
+
+## Timeline numbers follow your count
+
+The numbers above the close-up timeline are what you count on each beat (`beatLabel`). For 4-beat dances that's the bar's 1 to 4. For a longer pattern it's your own count: Bachata and the 8-count Jive timings run 1 to 8 across two bars, and the 6-count Jive runs 1 to 6, drifting across the bars like the stage does. The bar lines, the bar numbers and the pink 1 stay on the music, so in 8 counts the pink numbers are your 1 and 5.
 
 ## Counts and tempos
 

@@ -96,6 +96,7 @@ kbd {
 .stats dd { margin: 0; font-family: var(--font-mono); font-weight: 500; font-variant-numeric: tabular-nums; }
 .fit { flex: 1 1 100%; color: var(--muted); font-size: .9rem; }
 .suggest { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: .9rem; }
+.unsure { flex: 1 1 100%; font-size: .9rem; padding-left: 10px; border-left: 3px solid var(--step); }
 .progress { flex: 1 1 100%; display: flex; align-items: center; gap: 12px; font-size: .88rem; color: var(--muted); }
 .progress .track { flex: 0 0 160px; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .progress .fill { height: 100%; width: 0; background: var(--one); transition: width .2s; }
@@ -320,6 +321,7 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
     </dl>
     <p class="fit" id="fit"></p>
     <p class="suggest" id="suggest" hidden></p>
+    <p class="unsure" id="unsure" hidden></p>
     <div class="progress" id="progress" hidden><div class="track"><div class="fill" id="progressFill"></div></div><span id="progressText"></span></div>
   </section>
 
@@ -424,8 +426,14 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
     </div>
     <div class="tool">
       <h3>Start over</h3>
-      <p>Undo the tempo and the 1 fixes and detect the beats again.</p>
+      <p>Undo the tempo and the 1 fixes and detect the beats again. This also forgets a count you saved for the song.</p>
       <div class="row"><button class="btn" id="redetect" type="button">Detect again</button></div>
+    </div>
+    <div class="tool">
+      <h3>Count is right?</h3>
+      <p>Save the tempo, the 1 and the dance with the song. It opens that way next time, and your saved songs show how well detection does.</p>
+      <div class="row"><button class="btn" id="saveCount" type="button" disabled>Save this count</button></div>
+      <p class="small" id="countInfo">Works for songs in Your songs.</p>
     </div>
   </section>
 
@@ -478,7 +486,7 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
   </div>
   <footer>
     <p>Your song stays on your device: it is analyzed in this page and never uploaded. MP3, M4A, WAV, OGG and FLAC work. YouTube and Spotify links can't be opened here, so use an audio file. You can also drop a file anywhere on the page.</p>
-    <p class="version" id="version">Version 1.0 · 11 November 2026</p>
+    <p class="version" id="version">Version 1.1 · 11 November 2026</p>
   </footer>
 </div>
 <audio id="audio" preload="auto"></audio>
@@ -543,11 +551,15 @@ const DANCES = {
     { c: 3, f: 0.75, label: 'a', cue: 'Side', click: true, step: true, link: true },
     { c: 4, label: '4', cue: 'Cross', click: true, step: true }] },
   // The basic takes 6 beats and bars have 4, so it starts on the music's 1 only every other time.
-  jive: { name: 'Jive', inTitle: /\bjive\b/i, counting: '1 2 3 a 4 5 a 6', mpm: [42, 44], cycle: 6, slots: JIVE_BASIC },
+  // swing: danced to swung music, so a swung song can be offered as this dance
+  jive: { name: 'Jive', inTitle: /\bjive\b/i, swing: true, counting: '1 2 3 a 4 5 a 6', mpm: [42, 44], cycle: 6, slots: JIVE_BASIC },
   jive8: { name: 'Jive', group: 'jive', counting: '1 2 3 a 4 5 a 6 7 8', mpm: [42, 44], cycle: 8, slots: [
     ...JIVE_BASIC,
     { c: 7, label: '7', cue: 'Step', click: true, step: true },
     { c: 8, label: '8', cue: 'Step', click: true, step: true }] },
+  // the music's own count in eights, one number a beat, without the steps
+  jiveCount8: { name: 'Jive', group: 'jive', timing: "1 2 3 4 5 6 7 8: the music's count", counting: '1 2 3 4 5 6 7 8', mpm: [42, 44], cycle: 8,
+    slots: ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'].map((cue, i) => ({ c: i + 1, label: String(i + 1), cue, click: true })) },
   jiveRepeat: { name: 'Jive', group: 'jive', counting: '1, 2, 3 a 4, 3 a 4', mpm: [42, 44], cycle: 6,
     slots: JIVE_BASIC.map(s => (s.c > 4 && !s.f ? { ...s, label: String(s.c - 2) } : s)) },
   // Two bars counted straight through. The tap moves a foot but the weight stays, so it is a hold that still clicks.
@@ -573,7 +585,8 @@ const S = {
   displayEvents: [], clickEvents: [], nextClick: 0, shown: -2,
   dance: DANCES[store.get('dance', 'chacha')] ? store.get('dance', 'chacha') : 'chacha',
   click: store.get('click', 'off'), offset: store.get('offset', 0), zoom: store.get('zoom', 6),
-  rate: 1, loop: null, taps: [], dirty: true, wasPlaying: false, tempoNote: '', titleHints: []
+  rate: 1, loop: null, taps: [], dirty: true, wasPlaying: false, tempoNote: '', titleHints: [], soundHints: [],
+  unsure: { one: false, beat: false }, song: null
 };
 
 /* ---------- search helpers ---------- */
@@ -596,6 +609,13 @@ function nearestBeat(tt) {
 const countAt = i => ((i - S.k) % 4 + 4) % 4 + 1;
 const barAt = i => Math.floor((i - S.k) / 4) + 1;
 const placeInCycle = (i, n) => ((i - S.k - S.cycleShift) % n + n) % n + 1;
+// What you count on beat i: your own count in a longer pattern (1 to 8 in Bachata), otherwise the bar's 1 to 4.
+function beatLabel(i) {
+  const d = DANCES[S.dance];
+  if (!d.cycle) return String(countAt(i));
+  const place = placeInCycle(i, d.cycle), s = d.slots.find(x => x.c === place && !x.f);
+  return s ? s.label : String(place);
+}
 // The beat the dancer means by pressing now: people press slightly after they hear it.
 const heardBeat = () => nearestBeat(player.time() - S.offset - (player.isPlaying() ? 0.06 * player.rate : 0));
 const median = arr => { if (!arr.length) return 0; const s = arr.slice().sort((a, b) => a - b); return s[s.length >> 1]; };
@@ -801,10 +821,10 @@ function trimSilent(frames, f) {
   return frames.slice(a, b);
 }
 
-// Guess which of every 4 beats is the 1: bass hits, onset strength, and harmonic change.
-function guessDownbeat(times) {
+// How well each of the 4 beats of a bar fits being the 1: bass hits, onset strength, and harmonic change.
+function downbeatScores(times) {
   const f = S.feats, n = times.length;
-  if (!f || n < 8) return 0;
+  if (!f || n < 8) return [0, 0, 0, 0];
   const NB = f.NB;
   const fr = times.map(t => Math.max(0, Math.min(f.nFrames - 1, Math.round((t - f.t0) * f.fps))));
   const seg = [];
@@ -834,14 +854,55 @@ function guessDownbeat(times) {
     return Array.from(arr, v => (v - m) / s);
   };
   const zn = z(nov), zb = z(bassAt), zo = z(onAt);
-  let best = 0, bestS = -Infinity;
-  for (let k = 0; k < 4; k++) {
+  return [0, 1, 2, 3].map(k => {
     let s = 0, c = 0;
     for (let i = k; i < n; i += 4) { s += zn[i] + zb[i] + 0.5 * zo[i]; c++; }
-    s /= c;
-    if (s > bestS) { bestS = s; best = k; }
+    return s / c;
+  });
+}
+// Which of every 4 beats is the 1: the best score wins.
+function guessDownbeat(times) {
+  const s = downbeatScores(times);
+  return s.indexOf(Math.max(...s));
+}
+// Share of 8-bar stretches of the song that agree with the whole song about which beat is the 1.
+// Low agreement means the evidence is weak or the song changes, so the 1 should be checked by ear.
+function oneAgreement(times, k) {
+  let agree = 0, n = 0;
+  for (let w = 0; w + 32 <= times.length; w += 16) {
+    const s = downbeatScores(times.slice(w, w + 32));
+    if ((w + s.indexOf(Math.max(...s))) % 4 === k) agree++;
+    n++;
   }
-  return best;
+  return n >= 3 ? agree / n : 1;
+}
+// How much the time between beats varies, as a share of a beat. Steady songs stay around 2 to 3%.
+function beatSpread(times) {
+  const iv = times.slice(1).map((t, i) => t - times[i]);
+  if (iv.length < 8) return 0;
+  const m = iv.reduce((a, b) => a + b) / iv.length;
+  return Math.sqrt(iv.reduce((a, b) => a + (b - m) ** 2, 0) / iv.length) / m;
+}
+// Swung eighth notes, the jive feel. On a grid of quarter-note beats the offbeat comes about 2/3 through the
+// beat, with little half way (straight eighths) or 1/3 through (where a misread tempo also puts notes).
+function swingFeel(grid) {
+  const f = S.feats;
+  if (!f || grid.length < 16) return false;
+  const peak = (t0, t1) => {
+    let m = 0;
+    for (let j = Math.max(0, Math.round((t0 - f.t0) * f.fps)); j <= Math.min(f.nFrames - 1, Math.round((t1 - f.t0) * f.fps)); j++) if (f.O[j] > m) m = f.O[j];
+    return m;
+  };
+  let on = 0, third = 0, half = 0, swung = 0;
+  for (let i = 0; i + 1 < grid.length; i++) {
+    const a = grid[i], g = grid[i + 1] - a;
+    on += peak(a - 0.05 * g, a + 0.05 * g);
+    third += peak(a + 0.28 * g, a + 0.38 * g);
+    half += peak(a + 0.45 * g, a + 0.55 * g);
+    swung += peak(a + 0.62 * g, a + 0.72 * g);
+  }
+  // "Hit the Road Jack" scores 2.8 against half way and 1.9 against a third; straight songs stay under 1 and 1.3
+  return swung >= 2 * half && swung >= 1.5 * third && swung >= 0.08 * on;
 }
 
 function makePeaks(x, sr, rate) {
@@ -1047,9 +1108,14 @@ function retrack(P) {
   const beats = trimSilent(trackBeats(f.O, P), f).map(i => i / f.fps + f.t0);
   S.beats = bassBetweenBeats(beats) ? midpoints(beats) : beats;
   S.k = guessDownbeat(S.beats);
+  judgeBeats();
   S.cycleShift = 0;
   S.loop = null; $('loop').value = '0';
   afterBeatsChange();
+}
+// Whether to tell the dancer to check the 1, or that the beat drifts.
+function judgeBeats() {
+  S.unsure = { one: oneAgreement(S.beats, S.k) < 0.7, beat: beatSpread(S.beats) > 0.06 };
 }
 
 /* ---------- tempo and dance ---------- */
@@ -1096,13 +1162,35 @@ function fitTempoToDance(announce) {
   updateSongInfo();
   if (announce) toast(`Counting at ${(60 / S.ibi).toFixed(1)} BPM, the speed ${d.name} is danced to.`);
 }
+// Dances the sound points to. Today that's only swing, for dances marked swing: true (Jive).
+function soundDances() {
+  const b = S.beats, bpm = 60 / S.ibi;
+  return Object.keys(DANCES).filter(id => {
+    if (!DANCES[id].swing) return false;
+    // quarter-note beats at the speed that dance is danced to
+    const f = tempoFit(DANCES[id], bpm);
+    const grid = f === 1 ? b : f === 2 ? b.slice(1).flatMap((t, i) => [b[i], (b[i] + t) / 2]) : f === 0.5 ? b.filter((_, i) => i % 2 === 0) : null;
+    return !!grid && swingFeel(grid);
+  });
+}
 function renderSuggest() {
-  const box = $('suggest'), d = DANCES[S.dance], others = S.titleHints.filter(h => h.id !== (d.group || S.dance));
-  box.hidden = !others.length;
-  if (!others.length) return;
-  const said = others.map(h => DANCES[h.id].name + (h.mpm ? ` at ${+h.mpm.toFixed(1)} bars per minute` : ''));
-  box.replaceChildren(`The title says ${said.join(' or ')}.`,
-    ...others.map(h => button(`Count it as ${DANCES[h.id].name}`, '', () => setDance(timingChosen[h.id] || h.id))));
+  const box = $('suggest'), group = DANCES[S.dance].group || S.dance;
+  const titled = S.titleHints.filter(h => h.id !== group);
+  const heard = S.soundHints.filter(id => id !== group && !titled.some(h => h.id === id));
+  const ids = [...titled.map(h => h.id), ...heard];
+  box.hidden = !ids.length;
+  if (!ids.length) return;
+  const said = [];
+  if (titled.length) said.push(`The title says ${titled.map(h => DANCES[h.id].name + (h.mpm ? ` at ${+h.mpm.toFixed(1)} bars per minute` : '')).join(' or ')}.`);
+  if (heard.length) said.push(`It sounds swung, like ${heard.map(id => DANCES[id].name).join(' or ')}.`);
+  box.replaceChildren(said.join(' '), ...ids.map(id => button(`Count it as ${DANCES[id].name}`, '', () => setDance(timingChosen[id] || id))));
+}
+function renderUnsure() {
+  const msgs = [];
+  if (S.unsure.one) msgs.push('Not sure where the 1 is: different parts of this song point to different beats. Listen, and if the pink 1 is off, press This is the 1 on the one.');
+  if (S.unsure.beat) msgs.push("The beat isn't steady in this song, so the counts can drift away from the music. Tap along can help.");
+  $('unsure').hidden = !msgs.length || S.beats.length <= 4;
+  $('unsure').textContent = msgs.join(' ');
 }
 
 /* ---------- UI ---------- */
@@ -1169,6 +1257,7 @@ function updateSongInfo() {
   $('speedNote').textContent = S.rate === 1 ? '' : `Now ${(bpm * S.rate).toFixed(0)} BPM, ${(bpm * S.rate / bb).toFixed(1)} MPM`;
   const fit = $('fit');
   renderSuggest();
+  renderUnsure();
   if (S.beats.length <= 4) { fit.textContent = 'No steady beat found. Try Tap along below.'; return; }
   if (!d.mpm) { fit.textContent = 'Pick a dance to see where the steps go and compare the song with competition tempo.'; return; }
   const m = bpm / bb, [lo, hi] = d.mpm;
@@ -1249,7 +1338,7 @@ function drawDetail(t) {
     g.fillStyle = one ? C.one : C.muted;
     g.textAlign = 'center';
     g.font = `${one ? 800 : 600} ${one ? 24 : 18}px ${FONT_D}`;
-    g.fillText(String(c), x, top - 12);
+    g.fillText(beatLabel(i), x, top - 12);
     if (one && barAt(i) > 0) { g.font = `500 10px ${FONT_M}`; g.textAlign = 'left'; g.fillText('BAR ' + barAt(i), x + 9, top - 15); }
   }
   const d = DANCES[S.dance], ev = S.displayEvents;
@@ -1351,7 +1440,9 @@ function setOne() {
   if (S.beats.length < 4) return;
   const i = heardBeat();
   S.k = ((i % 4) + 4) % 4;
-  rebuildEvents();
+  S.unsure.one = false; // you heard it
+  rebuildEvents(); renderUnsure();
+  rememberCount();
   toast(`Got it: the beat at ${fmtTime(S.beats[i] + S.offset, true)} is now a 1.`);
 }
 function startCycleHere() {
@@ -1366,21 +1457,25 @@ function startCycleHere() {
 function moveOne(dir) {
   if (S.beats.length < 4) return;
   S.k = (S.k + dir + 4) % 4;
-  rebuildEvents();
+  S.unsure.one = false;
+  rebuildEvents(); renderUnsure();
+  rememberCount();
   toast(dir > 0 ? 'The 1 moved one beat later.' : 'The 1 moved one beat earlier.');
 }
 function changeTempo(factor) {
   if (!S.feats) return;
   retrack(S.P * factor);
+  rememberCount();
   toast(`Tempo is now ${(60 / S.ibi).toFixed(1)} BPM.`);
 }
 function shiftHalf(announce) {
   if (S.beats.length < 2) return;
   S.beats = midpoints(S.beats);
   S.k = guessDownbeat(S.beats);
+  judgeBeats();
   S.cycleShift = 0;
   afterBeatsChange();
-  if (announce) toast('Beat lines moved by half a beat.');
+  if (announce) { rememberCount(); toast('Beat lines moved by half a beat.'); }
 }
 function setLoop(n) {
   if (!n || S.beats.length < 4) { S.loop = null; markDirty(); return; }
@@ -1422,29 +1517,80 @@ function useTaps() {
   for (const t of taps) { const tt = t - S.offset; dsum += Math.abs(tt - S.beats[nearestBeat(tt)]); }
   if (dsum / taps.length > 0.25 * S.ibi) shiftHalf(false);
   S.taps = []; updateTapInfo();
+  rememberCount();
   toast(`Tempo set from your taps: ${(60 / S.ibi).toFixed(1)} BPM. Now check where the 1 is.`);
 }
 
+/* saved counts: your fixes, kept with the song in Your songs, so it opens the same way and detection can be checked */
+// Saves the song's tempo, its first 1 and the dance as they are now. Runs after every fix, and from Save this count.
+function rememberCount(announce) {
+  const song = S.song;
+  if (!song || !L.store || S.beats.length <= 4) return;
+  const count = { dance: S.dance, bpm: +(60 / S.ibi).toFixed(2), one: +S.beats[S.k].toFixed(3) };
+  song.count = count;
+  updateCountInfo();
+  L.store.setCount(song, count)
+    .then(() => { if (announce) toast(`Saved: ${DANCES[S.dance].name} at ${count.bpm.toFixed(1)} BPM. This song opens this way next time.`); })
+    .catch(e => toast(e.message));
+}
+function forgetCount() {
+  const song = S.song;
+  if (!song || !song.count || !L.store) return false;
+  delete song.count;
+  updateCountInfo();
+  L.store.setCount(song, null).catch(e => toast(e.message));
+  return true;
+}
+// Opens a song the way you saved it: its dance, its tempo and where the 1 is.
+function applySavedCount(c) {
+  if (DANCES[c.dance] && c.dance !== S.dance) {
+    S.dance = c.dance;
+    timingChosen[DANCES[c.dance].group || c.dance] = c.dance;
+    store.set('dance', c.dance);
+    renderSlots();
+  }
+  if (c.bpm) retrack(S.feats.fps * 60 / c.bpm);
+  if (c.one != null && S.beats.length > 4) {
+    // a grid you moved with Shift half a beat comes back half a beat off, so move it again
+    if (Math.abs(S.beats[nearestBeat(c.one)] - c.one) > S.ibi / 4) { S.beats = midpoints(S.beats); afterBeatsChange(); }
+    S.k = nearestBeat(c.one) % 4;
+  }
+  S.unsure = { one: false, beat: false };
+  S.tempoNote = ' This is the count you saved for this song. Detect again forgets it.';
+  rebuildEvents();
+}
+function updateCountInfo() {
+  const song = S.song, c = song && song.count;
+  $('saveCount').disabled = !song || !L.store;
+  $('countInfo').textContent = !song ? 'Works for songs in Your songs.'
+    : c ? `Saved: ${DANCES[c.dance] ? DANCES[c.dance].name : 'a dance'}${c.bpm ? `, ${c.bpm.toFixed(1)} BPM` : ''}. Fixes you make are saved too.`
+    : 'Not saved yet. Fixes you make to this song are saved for it.';
+}
+
 let loadToken = 0;
-async function loadAudio(blob, buffer, name, isDemo) {
+async function loadAudio(blob, buffer, name, isDemo, song) {
   const my = ++loadToken;
   player.pause();
   setBusy(true, 'Listening for the beats…', 0.03);
   const { feats, peaks, P } = await analyze(buffer, (p, msg) => { if (my === loadToken) setBusy(true, msg, p); });
   if (my !== loadToken) return;
-  S.feats = feats; S.peaks = peaks; S.periodAuto = P; S.duration = buffer.duration; S.name = name; S.isDemo = isDemo; S.titleHints = [];
+  S.feats = feats; S.peaks = peaks; S.periodAuto = P; S.duration = buffer.duration; S.name = name; S.isDemo = isDemo;
+  S.titleHints = []; S.soundHints = []; S.song = song || null;
   S.taps = []; updateTapInfo();
   await player.load(blob, buffer);
   if (my !== loadToken) return;
   retrack(P);
   S.titleHints = titleDances(name, 60 / S.ibi);
-  fitTempoToDance(false);
-  updateSongInfo();
+  S.soundHints = soundDances();
+  if (S.song && S.song.count) applySavedCount(S.song.count);
+  else fitTempoToDance(false);
+  updateSongInfo(); updateCountInfo();
   player.seek(0); afterSeek();
   setBusy(false);
   if (player.mode === 'buffer') toast('Using the backup player: here slower speeds also lower the pitch.');
 }
-async function loadFile(file, title) {
+// song: the entry in Your songs this file came from, if any, so its saved count can be used and updated
+async function loadFile(file, title, song) {
   if (!file) return false;
   const name = title || file.name.replace(/\.[^.]+$/, '');
   setBusy(true, `Opening ${name}…`, 0.01);
@@ -1452,7 +1598,7 @@ async function loadFile(file, title) {
     const ab = await file.arrayBuffer();
     const dctx = new OfflineAudioContext(2, 1, 22050);
     const buffer = await new Promise((res, rej) => { const p = dctx.decodeAudioData(ab, res, rej); if (p && p.catch) p.catch(rej); });
-    await loadAudio(file, buffer, name, false);
+    await loadAudio(file, buffer, name, false, song);
     return true;
   } catch (e) {
     console.error(e);
@@ -1475,7 +1621,8 @@ const diskStore = {
   async list() { return (await api('/api/library')).songs; },
   blob: song => fetchAudio(song.file),
   remove: song => api('/api/library?file=' + encodeURIComponent(song.file), { method: 'DELETE' }),
-  setTags: (song, tags) => api('/api/tags', { method: 'POST', body: JSON.stringify({ file: song.file, tags }) })
+  setTags: (song, tags) => api('/api/tags', { method: 'POST', body: JSON.stringify({ file: song.file, tags }) }),
+  setCount: (song, count) => api('/api/count', { method: 'POST', body: JSON.stringify({ file: song.file, count }) })
 };
 // Other online servers only pass songs through, so each browser keeps its own.
 const browserStore = {
@@ -1507,13 +1654,21 @@ const browserStore = {
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     return this.run('readwrite', s => s.put({ ...song, blob }));
   },
-  setTags(song, tags) {
+  // merges changes into a saved song; a null value removes that field
+  update(song, changes) {
     return this.run('readwrite', s => {
       const found = s.get(song.file);
-      found.onsuccess = () => s.put({ ...found.result, tags });
+      found.onsuccess = () => {
+        if (!found.result) return;
+        const rec = { ...found.result, ...changes };
+        for (const key of Object.keys(changes)) if (changes[key] === null) delete rec[key];
+        s.put(rec);
+      };
       return found;
     });
-  }
+  },
+  setTags(song, tags) { return this.update(song, { tags }); },
+  setCount(song, count) { return this.update(song, { count }); }
 };
 const onComputer = () => location.protocol === 'file:' || /^(localhost|127\.|\[::1\]|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
 
@@ -1810,7 +1965,7 @@ async function loadFromLibrary(song, knownBlob) {
     refreshLibrary();
     return;
   }
-  if (!(await loadFile(file, song.title))) return;
+  if (!(await loadFile(file, song.title, song))) return;
   L.current = song.file;
   renderSongs();
   document.querySelector('.stage').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
@@ -1853,7 +2008,11 @@ document.addEventListener('drop', e => {
   if (f) loadFile(f);
 });
 const timingChosen = { [DANCES[S.dance].group || S.dance]: S.dance }; // so going back to a dance keeps the timing you picked for it
-const setDance = id => { S.dance = id; timingChosen[DANCES[id].group || id] = id; store.set('dance', id); renderSlots(); rebuildEvents(); updateSongInfo(); fitTempoToDance(true); };
+// Changing the dance doesn't change a saved count: dancers often pick the dance before loading the next song.
+const setDance = id => {
+  S.dance = id; timingChosen[DANCES[id].group || id] = id; store.set('dance', id);
+  renderSlots(); rebuildEvents(); updateSongInfo(); fitTempoToDance(true);
+};
 document.querySelectorAll('[data-dance]').forEach(b => b.addEventListener('click', () => setDance(timingChosen[b.dataset.dance] || b.dataset.dance)));
 $('timing').addEventListener('change', e => setDance(e.target.value));
 $('cycleStart').addEventListener('click', startCycleHere);
@@ -1878,7 +2037,13 @@ $('double').addEventListener('click', () => changeTempo(0.5));
 $('shiftHalf').addEventListener('click', () => shiftHalf(true));
 $('tap').addEventListener('click', tap);
 $('useTaps').addEventListener('click', useTaps);
-$('redetect').addEventListener('click', () => { if (!S.feats) return; retrack(S.periodAuto); fitTempoToDance(false); toast('Beats detected again from scratch.'); });
+$('redetect').addEventListener('click', () => {
+  if (!S.feats) return;
+  const forgot = forgetCount();
+  retrack(S.periodAuto); fitTempoToDance(false);
+  toast(forgot ? 'Forgot the count you saved for this song, and detected the beats again.' : 'Beats detected again from scratch.');
+});
+$('saveCount').addEventListener('click', () => rememberCount(true));
 $('offset').addEventListener('input', e => {
   S.offset = +e.target.value / 1000; store.set('offset', S.offset);
   $('offsetVal').textContent = (S.offset > 0 ? '+' : '') + Math.round(S.offset * 1000) + ' ms';

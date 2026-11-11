@@ -9,7 +9,7 @@ They are written for developers and for AI assistants working on the code. If yo
 - **Purpose:** practice tools for Latin dancers. The main tool, Where's the One, finds the beats and the 1 of each bar in any song and shows the dance steps on each count.
 - **Runtime:** static HTML, CSS and JavaScript pages that run in any modern browser. An optional server for the song library uses Python 3.10+ (developed on 3.13) and [yt-dlp](https://github.com/yt-dlp/yt-dlp). It runs on your computer or, in a Docker container, on a hosting service.
 - **Architecture:** each tool is one self-contained HTML file with no build step and no framework. The server is one Python file using only the standard library plus yt-dlp.
-- **Maturity:** a working personal tool, used by one dancer and their studio. No automated tests.
+- **Maturity:** a working personal tool, used by one dancer and their studio. No automated tests; `tools/check-detection.js` measures beat detection against the counts saved for your songs.
 - **Key constraints:**
   - Every page must keep working as a plain static file on GitHub Pages, without the server.
   - Songs a user loads from their device are never uploaded. In online mode, the server keeps no song after passing it to the browser, unless `DANCE_LAB_DATA` points it at a lasting disk.

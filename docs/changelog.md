@@ -2,6 +2,23 @@
 
 Newest first. Each entry says what changed and why. Anything under **Removed** must not come back without the owner asking for it.
 
+## 2026-11-11, version 1.1: Saved counts, not-sure warnings, and Jive from swing
+
+The owner asked how to improve detection and check whether it's right, using "Hit the Road Jack" and "Sexbomb".
+
+**Added**
+
+- **Save this count**, and every fix to the 1 or the tempo, saves the song's dance, tempo and 1 with it in Your songs. The song opens that way next time; **Detect again** forgets it. See [decisions.md](decisions.md).
+- `tools/check-detection.js` scores detection against those saved counts, so changes can be measured on many songs. See [development.md](development.md).
+- A "not sure" line when the song's 8-bar stretches disagree about where the 1 is, or the beat isn't steady.
+- Jive is offered when a song is swung at jive speed: "It sounds swung, like Jive." "Hit the Road Jack" now gets it.
+- Jive timing "1 2 3 4 5 6 7 8: the music's count", one count a beat with no steps.
+- "Sexbomb" in the results table: 123.0 BPM, inside competition Cha-cha, straight, and its 1 the clearest of the saved songs.
+
+**Changed**
+
+- The timeline's numbers follow your count. With an 8-count, they run 1 to 8 across two bars; the bar lines and the pink 1 stay on the music.
+
 ## 2026-11-11, version 1.0: The dance sets the speed, and titles suggest a dance
 
 The owner danced "Hit the Road Jack" as Jive, which it is, and had to press **Double tempo**.
