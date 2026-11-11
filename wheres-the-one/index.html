@@ -486,7 +486,7 @@ body.drag .app { outline: 3px dashed var(--one); outline-offset: -6px; border-ra
   </div>
   <footer>
     <p>Your song stays on your device: it is analyzed in this page and never uploaded. MP3, M4A, WAV, OGG and FLAC work. YouTube and Spotify links can't be opened here, so use an audio file. You can also drop a file anywhere on the page.</p>
-    <p class="version" id="version">Version 1.1 · 11 November 2026</p>
+    <p class="version" id="version">Version 1.2 · 11 November 2026</p>
   </footer>
 </div>
 <audio id="audio" preload="auto"></audio>
@@ -609,12 +609,13 @@ function nearestBeat(tt) {
 const countAt = i => ((i - S.k) % 4 + 4) % 4 + 1;
 const barAt = i => Math.floor((i - S.k) / 4) + 1;
 const placeInCycle = (i, n) => ((i - S.k - S.cycleShift) % n + n) % n + 1;
-// What you count on beat i: your own count in a longer pattern (1 to 8 in Bachata), otherwise the bar's 1 to 4.
+// The number above beat i on the timeline: the music's count, 1 to 4 in each bar, or 1 to 8 across two bars for a
+// pattern counted in eights. It never drifts with a 6-count, and follows Start my basic here only by whole bars,
+// so every bar line carries a 1 (or a 5). The stage shows the dancer's own count.
 function beatLabel(i) {
-  const d = DANCES[S.dance];
-  if (!d.cycle) return String(countAt(i));
-  const place = placeInCycle(i, d.cycle), s = d.slots.find(x => x.c === place && !x.f);
-  return s ? s.label : String(place);
+  const d = DANCES[S.dance], n = d.cycle && d.cycle % 4 === 0 ? d.cycle : 4;
+  const shift = n > 4 && S.cycleShift % 4 === 0 ? S.cycleShift : 0;
+  return String(((i - S.k - shift) % n + n) % n + 1);
 }
 // The beat the dancer means by pressing now: people press slightly after they hear it.
 const heardBeat = () => nearestBeat(player.time() - S.offset - (player.isPlaying() ? 0.06 * player.rate : 0));

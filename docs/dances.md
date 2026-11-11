@@ -94,9 +94,12 @@ The 8-count patterns, Bachata and Jive with 7 8, fit two bars exactly, so the mu
 
 Apart from swing, nothing listens to the style of the music, so the page can't tell Cha-cha from Bachata at the same speed. That's an open question in [development.md](development.md).
 
-## Timeline numbers follow your count
+## Timeline numbers count the music
 
-The numbers above the close-up timeline are what you count on each beat (`beatLabel`). For 4-beat dances that's the bar's 1 to 4. For a longer pattern it's your own count: Bachata and the 8-count Jive timings run 1 to 8 across two bars, and the 6-count Jive runs 1 to 6, drifting across the bars like the stage does. The bar lines, the bar numbers and the pink 1 stay on the music, so in 8 counts the pink numbers are your 1 and 5.
+The numbers above the close-up timeline (`beatLabel`) are the music's count: 1 to 4 in each bar, or 1 to 8 across two bars for a timing counted in eights (Bachata, and the 8-count Jive timings). Every bar line carries a pink 1, or a 5 in eights.
+
+- **They never drift.** The 6-count Jive basic drifts across the bars, and that's shown by the big count on the stage, not by the timeline. In 1.1 the timeline showed the 6-count too, and its pink bar lines read 3, 1, 5. The owner found that confusing.
+- **Start my basic here moves them only by whole bars.** If your basic starts on a bar line, the 8-count follows it, so your 1 is on that bar. If it starts mid-bar, the timeline keeps the music's count and the stage shows yours.
 
 ## Counts and tempos
 

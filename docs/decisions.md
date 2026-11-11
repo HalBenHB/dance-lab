@@ -234,6 +234,7 @@ These look odd but are intentional:
 |---|---|---|
 | `lo = 200` for bands | `spectralFeatures` | Stops bass lines from faking chord changes (see above) |
 | `S.cycleShift = i - S.k`, not reduced to one cycle | `startCycleHere` | Dances now have cycles of different lengths. Reducing it would move your start when you change timing |
+| Timeline numbers ignore a 6-count and a mid-bar start | `beatLabel` | The timeline counts the music. Following the dancer's count put 3s and 5s on the pink bar lines (see [dances.md](dances.md)) |
 | `DANCE_LAB_DATA` refused inside the Dance Lab folder | `main()` in `server.py` | Everything in that folder is served as pages without the password |
 | `- 0.06 * player.rate` | `heardBeat` | Reaction time: people press "1" slightly after they hear it |
 | `touch-action: pan-y` on `#detail` | `<style>` | A sideways drag moves the song, and an up-and-down one still scrolls the page. With `none`, a phone user whose finger lands on this big canvas can't scroll. The browser sends `pointercancel` when it takes over, so `endScrub` handles that too |

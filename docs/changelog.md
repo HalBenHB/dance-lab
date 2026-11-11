@@ -2,6 +2,12 @@
 
 Newest first. Each entry says what changed and why. Anything under **Removed** must not come back without the owner asking for it.
 
+## 2026-11-11, version 1.2: Timeline numbers count the music
+
+**Fixed**
+
+- With the 6-count Jive timings, the pink bar lines on the timeline read 3, 1, 5 instead of the bar's 1, and an 8-count drifted the same way after **Start my basic here** moved your start off a bar line. The timeline now counts the music: 1 to 4, or 1 to 8 in eights, with a 1 or a 5 on every bar line. The stage still shows your own count. See [dances.md](dances.md).
+
 ## 2026-11-11, version 1.1: Saved counts, not-sure warnings, and Jive from swing
 
 The owner asked how to improve detection and check whether it's right, using "Hit the Road Jack" and "Sexbomb".
